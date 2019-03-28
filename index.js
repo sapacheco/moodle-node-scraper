@@ -114,10 +114,8 @@ a = retry(function() {
 
 		// ALMACENAMOS UNA COPIA DE LA COOKIE ANTES DEL LOGIN
 		var navigationCookie = await page.cookies();
-		await page.type('#username', _personalData["username"]);
-		await page.type('#password', _personalData["password"]);
-		// await page.type('#username', user);
-		// await page.type('#password', pass);
+		await page.type('#username', user);
+		await page.type('#password', pass);
 		await page.waitFor(1000);
 		console.info("\n\n  ▪ Iniciando sesión en la cuenta...");
 		await Promise.all([
