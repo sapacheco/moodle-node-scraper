@@ -1,0 +1,53 @@
+const delay = util.promisify(setTimeout);
+const retry = (fn, retryDelay = 100, numRetries = 3) => async (...args) => 
+  for (let i = 0; i < numRetries; i++) {
+    try {
+     	 return await fn(...args); 
+    } catch (e) {
+		if (i === numRetries - 1) throw e;
+		await delay(retryDelay);
+		retryDelay = retryDelay * 2;
+    }
+  }
+};
+
+
+
+
+
+
+const retry = (fn, ms) => new Promise(resolve => { 
+  fn()
+    .then(resolve)
+    .catch(() => {
+		setTimeout(() => {
+			console.log('retrying...');
+			retry(fn, ms).then(resolve);
+		}, ms);
+    })
+});
+
+
+https://aulavirtual.fio.unam.edu.ar/mod/folder/download_folder.php
+
+Host: aulavirtual.fio.unam.edu.ar
+User-Agent: Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:65.0) Gecko/20100101 Firefox/65.0
+Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8
+Accept-Language: en-US,en;q=0.5
+Accept-Encoding: gzip, deflate, br
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 27
+Connection: keep-alive
+Cookie: MoodleSession=2v7ihjm619939id3mmr17dtfk5
+Upgrade-Insecure-Requests: 1
+
+
+var requestOptions = {
+	url: sources[sourceIndex].fileLink,
+	headers: {
+		Cookie: loginCookie[0].name + "=" + loginCookie[0].value
+		Referer: https://aulavirtual.fio.unam.edu.ar/mod/folder/view.php?id=14815
+	},
+	rejectUnauthorized: false, // NO ESTOY SEGURO DE QUE HACE ESTO... PERO SIN ESTO LA DESCARGA ES RECHAZADA. NO TENGO GANAS DE HILAR FINO AHORA
+	method: (descargarCuerpo) ? "GET" : "HEAD" // EL METODO "HEAD" SOLO DESCARGA LAS CABECERAS, CON "GET" SE OBTIENE EL CUERPO TAMBIEN.
+}

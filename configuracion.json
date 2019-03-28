@@ -1,0 +1,6 @@
+{
+    "forzar-redescarga-cursoCompleto": false,
+    "puppeteer_headless": true,
+    "puppeteer_window_width": 600,
+	"puppeteer_window_height": 300
+}

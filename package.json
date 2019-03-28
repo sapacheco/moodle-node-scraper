@@ -1,0 +1,24 @@
+{
+  "name": "moodle-node-downloader",
+  "version": "1.0.0",
+  "description": "Primera prueba",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "node",
+    "moodle",
+    "scrap",
+    "download"
+  ],
+  "author": "Sergio Pacheco",
+  "license": "MIT",
+  "dependencies": {
+    "expect-puppeteer": "^3.5.1",
+    "mkdirp": "^0.5.1",
+    "npm": "^6.7.0",
+    "puppeteer": "^1.11.0"
+  },
+  "devDependencies": {}
+}
