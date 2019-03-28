@@ -105,9 +105,9 @@ a = retry(function() {
 
 		// PERMITIMOS QUE EL USUARIO INTRODUZCA SU NOMBRE
 		// Y CONTRASEÑA DIRECTAMENTE DESDE LA TERMINAL
-		term.brightWhite.bold("  » Introduzca su nombre de usuario de Moodle: ") ;
+		term.brightBlue.bold("  » Introduzca su nombre de usuario de Moodle: ") ;
 		var user = await term.inputField().promise;
-		term.brightWhite.bold("\n  » Introduzca su contraseña de Moodle: ") ;
+		term.brightBlue.bold("\n  » Introduzca su contraseña de Moodle: ") ;
 		var pass = await term.inputField({echoChar: true}).promise;
 		term.grabInput(false);
 	
@@ -131,9 +131,9 @@ a = retry(function() {
 			term.brightGreen("  ✓ Autenticación concedida.\n\n");
 			
 			
-			term.brightWhite.bold("  » ¿Quisieras guardar tus datos de inicio\n");
-			term.brightWhite.bold("    de sesión para futuras ocasiones? [S|n]\n");
-			var almacenarDatosLogin = await term.yesOrNo({ yes: ['s' , 'ENTER'] , no: ['n']}).promise;
+			term.brightBlue.bold("  » ¿Quisieras guardar tus datos de inicio\n");
+			term.brightBlue.bold("    de sesión para futuras ocasiones? [S|n]\n");
+			var almacenarDatosLogin = await term.yesOrNo({yes: ['s' , 'ENTER'] , no: ['n']}).promise;
 			term.grabInput(false);
 			console.log("    Respuesta: " + (almacenarDatosLogin ? "Si.\n" : "No.\n"));
 			// TODO: Terminar esto....
