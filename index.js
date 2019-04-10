@@ -134,13 +134,10 @@ async function connectToMoodle (puppeteerPage) {
 }
 
 
-// PROCESO DE LOGIN EN EL SITIO: SE SIMULA EL 
-// TIPEO DEL NOMBRE DE USUARIO, LA CONTRASEÑA
-// Y EL CLICK EN EL BOTON DE INICIO DE SESION.
-// ANTES DE HACER CLICK EN DICHO BOTON HAY QUE
-// ESPERAR ALGUN TIEMPO (POR EJEMPLO 1 SEGUNDO)
-// PORQUE, CASO CONTRARIO, EL LOGIN NO FUNCIONA.
-// ESTO LO DESCUBRI POR PRUEBA Y ERROR.
+// PROCESO DE LOGIN EN EL SITIO: SE SIMULA EL TIPEO DEL NOMBRE DE USUARIO, LA
+// CONTRASEÑA Y EL CLICK EN EL BOTON DE INICIO DE SESION. ANTES DE HACER CLICK
+// EN DICHO BOTON HAY QUE ESPERAR ALGUN TIEMPO (POR EJEMPLO 1 SEGUNDO) PORQUE,
+// CASO CONTRARIO, EL LOGIN NO FUNCIONA. ESTO LO DESCUBRI POR PRUEBA Y ERROR.
 async function tryMoodleLogin (puppeteerPage, cookieBeforeLogin) {
 
 
@@ -309,6 +306,7 @@ async function searchForMoodleSources (puppeteerPage) {
 	return sources;
 }
 
+
 function sanitizeSourcesInfo (sources) {
 	// ELIMINAMOS DEL NOMBRE CARACTERES QUE PUEDAN CAUSAR CONFLITOS CON EL
 	// SISTEMA DE ARCHIVOS. TAMBIÉN CREAMOS LA RUTA DONDE SE GUARDARA EL
@@ -347,6 +345,26 @@ async function savePagePreview (puppeteerPage, courseName) {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 // ESTA FUNCION ES LA ENCARGADA DE INICIAR EL PROCESO DE SELECCION Y DESCARGA DE
 // UN CURSO. TODO: ¿SEGMENTAR ESTA MEGA FUNCION EN PARTES MAS CHICAS?
 async function descargarCurso () {
@@ -361,7 +379,7 @@ async function descargarCurso () {
 
 	
 
-
+	// .....-..-.-..-. .-.  - . -- SEGUIR DESMEMBRANDO LO DE ACÁ PARA ABAJO!!!!!!
 
 
 
@@ -472,11 +490,11 @@ async function descargarCurso () {
 					} else {
 						
 
-						// OBTENEMOS EL NOMBRE DE ARCHIVO ORIGINAL
-						// Y SU EXTENSIÓN. ESTA INFORMACIÓN VIENE
-						// EN LA CABECERA DE LA RESPUESTA. NO TODAS
-						// LAS RESPUESTAS LA INCLUYEN, PORQUE DEPENDE
-						// DEL CONTENIDO DE LAS MISMAS, CLARO ESTÁ.
+						// OBTENEMOS EL NOMBRE DE ARCHIVO ORIGINAL Y SU
+						// EXTENSIÓN. ESTA INFORMACIÓN VIENE EN LA CABECERA DE
+						// LA RESPUESTA. NO TODAS LAS RESPUESTAS LA INCLUYEN,
+						// PORQUE DEPENDE DEL CONTENIDO DE LAS MISMAS, CLARO
+						// ESTÁ.
 						if(res.headers['content-disposition']) {
 							var fileNameData = ((res.headers['content-disposition'].match(/filename=\"([^"]*)\"/gi))[0]).split(".");
 							if (fileNameData.length > 1) {
@@ -504,8 +522,9 @@ async function descargarCurso () {
 							if (descargarCuerpo === false) console.log(`\n    [${sourceIndex + 1}/${sources.length}] ${sources[sourceIndex].sectionName}:\n\t    Nombre: "${sources[sourceIndex].fileTitle}"\n\t    Tipo: ${res.headers['content-type']}`);
 							
 
-							// SI SE TRATA DE UN HTML CON UN RECURSO EMBEBIDO DENTRO, LO 
-							// ANALIZAMOS A FIN DE ENCONTRAR LA VERDADERA DIRECCION DEL ARCHIVO
+							// SI SE TRATA DE UN HTML CON UN RECURSO EMBEBIDO
+							// DENTRO, LO ANALIZAMOS A FIN DE ENCONTRAR LA
+							// VERDADERA DIRECCION DEL ARCHIVO
 							if (res.headers['content-type'].indexOf("html") != -1) {
 								if (res.body == "") {
 									console.log(`\t    El link conduce a un archivo HTML: Obteniendo recurso real...`); // ⤷
@@ -699,15 +718,7 @@ async function descargarCurso () {
   
 // FUNCION PRINCIPAL
 (async () => {
-	
-
-	// MOSTRAMOS UN MENU AL USUARIO
 	await launchMenu();
-
-	
-
-
-
 })();
 
 // Gracias Señor Jesús.-
