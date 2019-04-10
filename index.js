@@ -180,7 +180,6 @@ async function tryMoodleLogin (puppeteerPage, cookieBeforeLogin) {
 		
 		return loginCookie;
 	} else {
-		// console.error("  ⚠️ Se produjo un error en la autenticación, reintentando...\n");
 		term.brightYellow("  ⚠️ Se produjo un error en la autenticación: Quizás\n");
 		term.brightYellow("    el nombre de usuario o la contraseña ingresados\n");
 		term.brightYellow("    sean incorrectos. Reintentando...\n\n");
@@ -189,35 +188,15 @@ async function tryMoodleLogin (puppeteerPage, cookieBeforeLogin) {
 }
 
 
-// ESTA FUNCION ES LA ENCARGADA DE INICIAR EL
-// PROCESO DE SELECCION Y DESCARGA DE UN CURSO
-// TODO: ¿SEGMENTAR ESTA MEGA FUNCION EN PARTES MAS CHICAS?
-async function descargarCurso () {
-
-
-
-	const page = await launchPuppeteer();
-	var cookieBeforeLogin = await connectToMoodle(page);
-	var cookieCorrectLogin = await tryMoodleLogin(page, cookieBeforeLogin);
-
-
-
-
-
-
-	
-
-	
-	// UNA VEZ EN LA PAGINA DEL CURSO EN CUESTION
-	// DEL CUAL SE QUIERE DESCARGAR LOS ARCHIVOS,
-	// REALIZAMOS SCRAP DE LA INFORMACION DE LOS 
-	// MISMOS (LINK DE DESCARGA, NOMBRE, SECCION,
-	// ETC) Y LOS CARGAMOS EN UN ARRAY (sources)
-	// QUE USAREMOS LUEGO PARA REALIZAR LA DESCARGA
+// UNA VEZ EN LA PAGINA DEL CURSO DEL CUAL SE QUIERE DESCARGAR LOS ARCHIVOS,
+// REALIZAMOS SCRAP DE LA INFORMACION DE LOS MISMOS (LINK DE DESCARGA, NOMBRE, SECCION,
+// ETC) Y LOS CARGAMOS EN UN ARRAY (sources) QUE USAREMOS LUEGO PARA REALIZAR LA DESCARGA
+// TODO: Partir esta funcion en pedazos mas pequeños?
+async function searchForMoodleSources (puppeteerPage) {
 	console.info("  ▪ Obteniendo lista de recursos disponibles para la descarga...");
-	await page.goto(_personalData["curso-url"], {waitUntil: 'networkidle2'});
-	await page.addScriptTag({path: 'jquery-3.2.1.min.js'}); // CARGA LOCAL, AUNQUE TAMBIEN PUEDE SER ONLINE: await page.addScriptTag({url: 'https://code.jquery.com/jquery-3.2.1.min.js'});
-	let sources = await page.evaluate((myConfig) => {
+	await puppeteerPage.goto(_personalData["curso-url"], {waitUntil: 'networkidle2'});
+	await puppeteerPage.addScriptTag({path: 'jquery-3.2.1.min.js'}); // CARGA LOCAL, AUNQUE TAMBIEN PUEDE SER ONLINE: await page.addScriptTag({url: 'https://code.jquery.com/jquery-3.2.1.min.js'});
+	let sources = await puppeteerPage.evaluate((myConfig) => {
 		
 		
 		// PARA USARLO: var color = randomColor.next().value;
@@ -241,21 +220,15 @@ async function descargarCurso () {
 		})();
 
 
-		// ELIMINAMOS LA PARTE QUE CONTIENE NUMEROS EN 
-		// LA URL DE LOS DIFERENTES TIPOS DE RECURSOS
-		// PORQUE ESTOS NÚMEROS CAMBIAN CONSTANTEMENTE
+		// ELIMINAMOS LA PARTE QUE CONTIENE NUMEROS EN LA URL DE LOS DIFERENTES
+		// TIPOS DE RECURSOS PORQUE ESTOS NÚMEROS CAMBIAN CONSTANTEMENTE
 		// QUITANDOLE ROBUSTES AL PROGRAMA.
 		var recursos_blackListTiposGenericos = myConfig.recursos_blackListTipos.map((i) => i.replace(/\/\d+(?=\/)/gi, ""));
 
 
-		// ESTA FUNCION DETERMINA SI EL ARCHIVO
-		// ACTUALMENTE ANALIZADO EN LA PAGINA DEBE
-		// SER DESCARGADO O NÓ, EN BASE A LA LISTA
-		// ANTERIORMENTE DEFINIDA (FILTRADO POR TIPO).
-		// TAMBIEN ES POSIBLE HACER UN FILTRADO POR
-		// NOMBRE DE ARCHIVO, AUNQUE POR AHORA NO ES
-		// PRIORIDAD IMPLEMENTAR ESTO. HAY QUE TRABAJAR
-		// UN POCO EL CODIGO COMENTADO RELACIONADO A ESO.
+		// FILTRA LOS RECURSOS DE LA PAGINA EN BASE A LA LISTA NEGRA DEFINIDA
+		// ARRIBA (FILTRADO POR TIPO). 
+		// TODO: Implementar filtrado por nombre?
 		function filter(index, item) {
 			var tipo = (jQuery(item).find("img").attr("src")).replace(/\/\d+(?=\/)/gi, ""); // ELIMINAMOS LA PARTE QUE CONTIENE NUMEROS CAMBIANTES EN LA URL
 			if(recursos_blackListTiposGenericos.indexOf(tipo) === -1 ) {
@@ -269,12 +242,9 @@ async function descargarCurso () {
 		}
 
 
-		// AQUI SE ANALIZAN UNO A UNO LOS ELEMENTOS DEL DOM
-		// DE LA PAGINA A FIN DE ENCONTRAR LA INFORMACION
-		// NECESARIA PARA LA DESCARGA. SE LEEN 3 VALORES:
-		// EL TITULO DEL ARCHIVO (ASI COMO LO LISTA EL
-		// AULA VIRTUAL), LA SECCION A LA QUE PERTENECE
-		// Y EL LINK DE DESCARGA. TODO SE CARGA A UN ARRAY.
+		// SE EXTRAEN DEL DOM 3 VALORES NECESARIOS: EL TITULO DEL ARCHIVO (ASI
+		// COMO LO LISTA EL AULA VIRTUAL), LA SECCION A LA QUE PERTENECE Y EL
+		// LINK DE DESCARGA. TODO SE CARGA A UN ARRAY.
 		var courseName = $(".page-header-headings").text();
 		var color_subSection = randomColor.next().value;
 		var sourceInfo = jQuery('body .instancename')
@@ -289,20 +259,18 @@ async function descargarCurso () {
 				var fileName = ($(item).text()).replace(new RegExp($(item).find(".accesshide").text() + "$"), "").replace(/(^\s+|\s+$)/gi, ""); // QUITAMOS DEL NOMBRE LA PARTE CORRESPONDIENTE A UNA ETIQUETA OCULTA EN EL HTML Y ESPACIOS EN BLANCO AL INICIO Y AL FINAL DEL STRING
 				
 
-				// OBTENCIÓN DE LA SUBSECCIÓN A LA QUE PERTENECE EL RECURSO:
-				// PARA HACERLO, SE TOMA UN ITEM, Y SE BUSCA SU ANTECESOR
-				// A FIN DE OBSERVAR SI CORRESPONDE A OTRO ITEM O A UNA 
-				// ETIQUETA SE SUBSECCIÓN. EN CASO DE QUE SEA UNA ETIQUETA, 
-				// SE CAPTURA SU VALOR Y SE CORTA EL BUCLE. SI ESE NO ES 
-				// EL CASO, SE SIGUE BUSCANDO HACIA ATRÁS EN LA MISMA SECCIÓN.
-				// SI NO SE ENCUENTRA NINGUNA ETIQUETA EN TODA LA SECCIÓN,
-				// SE DEJA SIN NOMBRE A LA SUBSECCIÓN. ESTO ES TAN ENREDADO
-				// PORQUE EL MOODLE NO ORDENA LAS SUBSECCIONES POR PARENTESCO,
-				// EN FORMA DE CONTENEDORES, SI NO QUE UBICA LAS ETIQUETAS COMO
-				// UN ITEM MAS DE LA LISTA DE RECURSOS, AL MISMO NIVEL JERÁRQUICO.
-				var subSectionName = "";
-				var section_prev_name = "";
-				var section_i_name = "";
+				// OBTENCIÓN DE LA SUBSECCIÓN A LA QUE PERTENECE EL RECURSO: SE
+				// TOMA UN ITEM, Y SE BUSCA SU ANTECESOR A VER SI CORRESPONDE A
+				// OTRO ITEM O A UNA ETIQUETA SE SUBSECCIÓN. SI ES UNA ETIQUETA,
+				// SE CAPTURA SU VALOR Y SE CORTA EL BUCLE. SINO, SE SIGUE
+				// BUSCANDO HACIA ATRÁS EN LA MISMA SECCIÓN. SI NO SE ENCUENTRA
+				// NINGUNA ETIQUETA EN TODA LA SECCIÓN, SE DEJA SIN NOMBRE A LA
+				// SUBSECCIÓN. ESTO ES TAN ENREDADO PORQUE EL MOODLE NO ORDENA
+				// LAS SUBSECCIONES POR PARENTESCO, EN FORMA DE CONTENEDORES, SI
+				// NO QUE UBICA LAS ETIQUETAS COMO UN ITEM MAS DE LA LISTA DE
+				// RECURSOS, AL MISMO NIVEL JERÁRQUICO.
+				var subSectionName, section_prev_name, section_i_name;
+				subSectionName = section_prev_name = section_i_name = "";
 				var itemEnLista_prev = $(item).closest(".activity"); // Valor inicial
 				var itemEnLista_i = $(item).closest(".activity").next(); // Valor inicial
 				do {
@@ -333,21 +301,19 @@ async function descargarCurso () {
 					fileSize: null, // [Bytes] SERÁ COMPLETADO LUEGO AL RECIBIR LA CABECERA DE LA DECARGA
 					isMoodleFolder_id: (downloadLink.split("id=").length > 1 && downloadLink.indexOf("folder") != -1) ? downloadLink.split("id=").slice(-1)[0] : null // [NUM] SI EL RECURSO EN CUESTION ES UNA CARPETA DEL MOODLE, SE ALMACENA AQUI SU NUM DE ID. CASO CONTRARIO, SE DEJA ESTE VALOR EN "null". ESTO SERÁ UTIL LUEGO PORQUE LAS CARPETAS SE DESCARGAN DE OTRA FORMA QUE LOS DEMAS RECURSOS.
 				};
-			})
-			.toArray();
-			console.table(sourceInfo);
+			}).toArray();
 		
 		return sourceInfo;
 	}, _config);
 	term.brightGreen("  ✓ Total de archivos a descargar: " + sources.length + "\n\n");
-	// console.info("  ✓ Total de archivos a descargar: " + sources.length + "\n");
+	return sources;
+}
 
-
-
-	// ELIMINAMOS DEL NOMBRE CARACTERES QUE PUEDAN
-	// CAUSAR CONFLITOS CON EL SISTEMA DE ARCHIVOS.
-	// TAMBIÉN CREAMOS LA RUTA DONDE SE GUARDARA EL
-	// ARCHIVO: "./descargas/Nombre_curso/Nombre_seccion/Nombre_subSeccion/archivo"
+function sanitizeSourcesInfo (sources) {
+	// ELIMINAMOS DEL NOMBRE CARACTERES QUE PUEDAN CAUSAR CONFLITOS CON EL
+	// SISTEMA DE ARCHIVOS. TAMBIÉN CREAMOS LA RUTA DONDE SE GUARDARA EL
+	// ARCHIVO:
+	// "./descargas/Nombre_curso/Nombre_seccion/Nombre_subSeccion/archivo"
 	sources = sources.map((i) => Object.assign(i, {
 		fileName: sanitize(i.fileName, {replacement: "-"}), 
 		fileTitle: sanitize(i.fileTitle, {replacement: "-"}), 
@@ -355,47 +321,69 @@ async function descargarCurso () {
 		subSectionName: sanitize(i.subSectionName, {replacement: "-"})
 	}));
 	sources.forEach((i) => fs.ensureDirSync(path.join("descargas", i.courseName + " - Aula Virtual", i.sectionName, i.subSectionName))); 
+	return sources;
+}
 
 
-
-	// REALIZAMOS UNA CAPTURA DE PANTALLA DE LA PAGINA COMO REGISTRO
+// REALIZA UNA CAPTURA DE PANTALLA DE LA PAGINA 
+// Y GUARDA UN ARCHIVO PDF, A MODO DE REGISTRO.
+// ESTO FUNCIONA SOLAMENTE CUANDO headless = true;
+async function savePagePreview (puppeteerPage, courseName) {
 	console.info("  ▪ Guardando una vista previa del curso...");
 	try {
-		await page._client.send('Emulation.clearDeviceMetricsOverride'); // PARA QUE EL ANCHO DE LA PAGINA SEA EL MISMO QUE EL DE LA VENTA DEL NAVEGADOR
-		await page.screenshot({ path: './descargas/' + sources[0].courseName + ' - Aula Virtual/Contenido del curso.png', fullPage: true });
-		await page.pdf({path: './descargas/' + sources[0].courseName + ' - Aula Virtual/Contenido del curso.pdf', format: 'A4', printBackground: true}); // TODO: Es util?
-		term.brightGreen('  ✓ Guardada en ' + '"./descargas/' + sources[0].courseName + ' - Aula Virtual/Contenido del curso.png"\n\n'); // ESTO FUNCIONA SOLAMENTE CUANDO headless = true;
-		// console.info("  ✓ Guardada en " + "./descargas/" + sources[0].courseName + " - Aula Virtual/Contenido del curso.png\n");
+		await puppeteerPage._client.send('Emulation.clearDeviceMetricsOverride'); // PARA QUE EL ANCHO DE LA PAGINA SEA EL MISMO QUE EL DE LA VENTA DEL NAVEGADOR
+		await puppeteerPage.screenshot({ path: './descargas/' + courseName + ' - Aula Virtual/Contenido del curso.png', fullPage: true });
+		await puppeteerPage.pdf({path: './descargas/' + courseName + ' - Aula Virtual/Contenido del curso.pdf', format: 'A4', printBackground: true}); // TODO: Es util?
+		term.brightGreen('  ✓ Guardada en ' + '"./descargas/' + courseName + ' - Aula Virtual/Contenido del curso.png"\n\n'); 
+		term.brightGreen('  ✓ Guardada en ' + '"./descargas/' + courseName + ' - Aula Virtual/Contenido del curso.pdf"\n\n'); 
 	} catch (e) {
 		term.brightYellow("  ⚠️ Existieron algunos problemas, la operación pudo o nó haberse completada de forma correcta: " + e + "\n\n");
 	}
+}
 
 
 
-	// ESTA FUNCIÓN DESCARGA SOLAMENTE LA INFORMACION DE
-	// CABECERA DE LOS ENLACES CORRESPONDIENTES A CADA UNO
-	// DE LOS RECURSOS. EL PROPÓSITO ES OBTENER INFORMACIÓN
-	// ADICIONAL COMO LA EXTENSIÓN DEL NOMBRE DEL ARCHIVO Y
-	// SU TAMAÑO. ESTO SERVIRÁ PARA TRABAJAR LUEGO CON EL 
-	// SISTEMA DE ARCHIVOS.
-	// POR OTRO LADO, EN EL MOODLE A VECES SUCEDE QUE LOS 
-	// RECURSOS SON AGREGADOS NO COMO UN ENLACE DIRECTO, SI
-	// NÓ QUE EL ENLACE DE LA PAGINA PRINCIPAL CONDUCE A OTRA
-	// PAGINA WEB DONDE ESTA EMBEBIDO, O "INCRUSTADO", EL 
-	// VERDADERO ARCHIVO. EN ESTE CASO LO QUE OBTENEMOS COMO
-	// RESPUESTA DE LA PETICIÓN NO ES UN ARCHIVO, SI NÓ UN 
-	// DOCUMENTO HTML. NOSOTROS QUEREMOS EL ARCHIVO, POR LO
-	// QUE ES NECESARIO HACER UN PEQUEÑO PROCESAMIENTO DEL 
-	// CUERPO DE LA RESPUESTA (EL CODIGO HTML) A FIN DE 
-	// ENCONTRAR EL LINK DEL VERDADERO ARCHIVO (CASO 
-	// CONTRARIO ESTARIAMOS DESCARGANDO SOLO EL HTML)
+
+
+
+
+// ESTA FUNCION ES LA ENCARGADA DE INICIAR EL PROCESO DE SELECCION Y DESCARGA DE
+// UN CURSO. TODO: ¿SEGMENTAR ESTA MEGA FUNCION EN PARTES MAS CHICAS?
+async function descargarCurso () {
+	const page = await launchPuppeteer();
+	var cookieBeforeLogin = await connectToMoodle(page);
+	var cookieCorrectLogin = await tryMoodleLogin(page, cookieBeforeLogin);
+	var sources = await searchForMoodleSources(page);
+	sources = sanitizeSourcesInfo(sources);
+	await savePagePreview(page, sources[0].courseName);
+
+
+
+	
+
+
+
+
+
+
+	// ESTA FUNCIÓN DESCARGA SOLAMENTE LA INFORMACION DE CABECERA DE LOS ENLACES
+	// CORRESPONDIENTES A CADA UNO DE LOS RECURSOS. EL PROPÓSITO ES OBTENER
+	// INFORMACIÓN ADICIONAL COMO LA EXTENSIÓN DEL NOMBRE DEL ARCHIVO Y SU
+	// TAMAÑO. ESTO SERVIRÁ PARA TRABAJAR LUEGO CON EL SISTEMA DE ARCHIVOS. POR
+	// OTRO LADO, EN EL MOODLE A VECES SUCEDE QUE LOS RECURSOS SON AGREGADOS NO
+	// COMO UN ENLACE DIRECTO, SI NÓ QUE EL ENLACE DE LA PAGINA PRINCIPAL
+	// CONDUCE A OTRA PAGINA WEB DONDE ESTA EMBEBIDO, O "INCRUSTADO", EL
+	// VERDADERO ARCHIVO. EN ESTE CASO LO QUE OBTENEMOS COMO RESPUESTA DE LA
+	// PETICIÓN NO ES UN ARCHIVO, SI NÓ UN DOCUMENTO HTML. NOSOTROS QUEREMOS EL
+	// ARCHIVO, POR LO QUE ES NECESARIO HACER UN PEQUEÑO PROCESAMIENTO DEL
+	// CUERPO DE LA RESPUESTA (EL CODIGO HTML) A FIN DE ENCONTRAR EL LINK DEL
+	// VERDADERO ARCHIVO (CASO CONTRARIO ESTARIAMOS DESCARGANDO SOLO EL HTML)
 	function analizarRecursos() {
 
 
-		// ESTA FUNCIÓN PROCESA CODIGO HTML PROVENIENTE
-		// DE UNA PAGINA DE MOODLE DONDE SE ENCUENTRE
-		// EMBEBIDO UN RECURSO, CON EL OBJETIVO DE 
-		// EXTRAER EL LINK DEL MISMO
+		// ESTA FUNCIÓN PROCESA CODIGO HTML PROVENIENTE DE UNA PAGINA DE MOODLE
+		// DONDE SE ENCUENTRE EMBEBIDO UN RECURSO, CON EL OBJETIVO DE EXTRAER EL
+		// LINK DEL MISMO
 		function buscarRecursosEnHTML (htmlCode) {
 			var $ = cheerio.load(htmlCode);
 			var sourceLink = "";
@@ -418,47 +406,37 @@ async function descargarCurso () {
 				// Links
 				sourceLink = $(".urlworkaround").html().match(/https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)/gi)[0];
 			}
-			
+			// ESTO FUNCIONA SOLAMENTE CUANDO headless = true;
 			// SI NO HAY COINCIDENCIA CON NINGUNA
 			// DE LAS PLANTILLAS ANTERIORES
 			if (sourceLink === null || sourceLink === "") {
-				
-				/* console.error("\t    ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄");
-				console.error("\t    ⚠️ Atención: No se pudo obtener la dirección del recurso. Se");
-				console.error("\t    descargará una imagen con un símbolo  de 'error' en su lugar");
-				console.error("\t    ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀"); */
-
 				term.brightYellow("\t    ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄\n");
 				term.brightYellow("\t    ⚠️ Atención: No se pudo obtener la dirección del recurso. Se\n");
 				term.brightYellow("\t    descargará una imagen con un símbolo  de 'error' en su lugar\n");
 				term.brightYellow("\t    ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀\n");
-
 				sourceLink = "https://upload.wikimedia.org/wikipedia/commons/5/5f/Icon_Simple_Error.png"; // ESTE LINK CONDUCE A UNA IMAGEN DE ERROR, CON LICENCIA CC0 (DOMINIO PUBLICO). EL SCRIPT LA DESCARGARÁ EN LUGAR DEL RECURSO NO HALLADO.
 			}
 
 			// DEVOLVEMOS LA DIRECCIÓN DEL RECURSO
-			// console.log(sourceLink);
 			return sourceLink;
 		}
 
 
-		// DEVOLVEMOS UNA PROMESA CUANDO LLAMEN A LA FUNCIÓN.
-		// SERÁ RESUELTA UNA VEZ QUE SEAN ANALIZADOS TODOS
-		// LOS RECURSOS. LA EJECUCIÓN DEL PROGRAMA QUE ESTÁ
-		// LUEGO DE LA LLAMADA A LA FUNCIÓN SE DETENDRÁ HASTA
-		// QUE LA PROMESA SEA RESUELTA. ESTO ES LO PROPIO DEL 
-		// MODO DE TRABAJO ASINCRÓNICO EN JS. UTILIZAMOS AWAIT
-		// EN LA LLAMADA PARA ESPERAR EL CUMPLIMIENTO DE LA PROMESA.
+		// DEVOLVEMOS UNA PROMESA CUANDO LLAMEN A LA FUNCIÓN. SERÁ RESUELTA UNA
+		// VEZ QUE SEAN ANALIZADOS TODOS LOS RECURSOS. LA EJECUCIÓN DEL PROGRAMA
+		// QUE ESTÁ LUEGO DE LA LLAMADA A LA FUNCIÓN SE DETENDRÁ HASTA QUE LA
+		// PROMESA SEA RESUELTA. ESTO ES LO PROPIO DEL MODO DE TRABAJO
+		// ASINCRÓNICO EN JS. UTILIZAMOS AWAIT EN LA LLAMADA PARA ESPERAR EL
+		// CUMPLIMIENTO DE LA PROMESA.
 		return new Promise(function(resolve, reject) {
 
 
-			// ESTA FUNCIÓN INICIA LA DESCARGA DE LA INFORMACIÓN
-			// DE CADA RECURSO Y PROCESA LA RESPUESTA. SE DECARGAN
-			// SOLAMENTE SUS CABECERAS, SALVO CASO QUE SE TRATE DE
-			// UN ARCHIVO HTML: ENTONCES SE DESCARGARÁ EL CUERPO
-			// COMPLETO, A FIN DE PROCESARLO PARA ENCONTRAR EL LINK
-			// DEL RECURSO QUE ESTÁ EMBEBIDO DENTRO DEL MISMO Y QUE 
-			// ES EL QUE VERDADERAMENTE QUEREMOS DESCARGAR LUEGO.
+			// ESTA FUNCIÓN INICIA LA DESCARGA DE LA INFORMACIÓN DE CADA RECURSO
+			// Y PROCESA LA RESPUESTA. SE DECARGAN SOLAMENTE SUS CABECERAS,
+			// SALVO CASO QUE SE TRATE DE UN ARCHIVO HTML: ENTONCES SE
+			// DESCARGARÁ EL CUERPO COMPLETO, A FIN DE PROCESARLO PARA ENCONTRAR
+			// EL LINK DEL RECURSO QUE ESTÁ EMBEBIDO DENTRO DEL MISMO Y QUE ES
+			// EL QUE VERDADERAMENTE QUEREMOS DESCARGAR LUEGO.
 			(function analizarRecurso(sourceIndex, descargarCuerpo = false) {
 				
 				
@@ -561,29 +539,25 @@ async function descargarCurso () {
 	
 	
 
-	// ESTA FUNCION DESCARGA TODOS LOS RECURSOS QUE SE
-	// ENCUENTRAN LISTADOS EN LA VARIABLE "sources".
-	// CONTIENE PARTES DEL TIPO ASYNCRÓNICO, ASÍ QUE
-	// AL LLAMARLA, ES BUENO UTILIZAR "await" PARA
-	// EVITAR QUE EL RESTO DEL CODIGO SE SIGA EJECUTANDO
-	// ANTES DE QUE TODOS LOS RECURSOS SE HAYAN DESCARGADO
+	// ESTA FUNCION DESCARGA TODOS LOS RECURSOS QUE SE ENCUENTRAN LISTADOS EN LA
+	// VARIABLE "sources". CONTIENE PARTES DEL TIPO ASYNCRÓNICO, ASÍ QUE AL
+	// LLAMARLA, ES BUENO UTILIZAR "await" PARA EVITAR QUE EL RESTO DEL CODIGO
+	// SE SIGA EJECUTANDO ANTES DE QUE TODOS LOS RECURSOS SE HAYAN DESCARGADO
 	function descargarRecursos() {
 
 
-		// DEVOLVEMOS UNA PROMESA CUANDO LLAMEN A LA FUNCIÓN.
-		// SERÁ RESUELTA UNA VEZ QUE SEAN DESCARGADOS TODOS
-		// LOS RECURSOS. LA EJECUCIÓN DEL PROGRAMA QUE ESTÁ
-		// LUEGO DE LA LLAMADA A LA FUNCIÓN SE DETENDRÁ HASTA
-		// QUE LA PROMESA SEA RESUELTA. ESTO ES LO PROPIO DEL 
-		// MODO DE TRABAJO ASINCRÓNICO EN JS. UTILIZAMOS AWAIT
-		// EN LA LLAMADA PARA ESPERAR EL CUMPLIMIENTO DE LA PROMESA.
+		// DEVOLVEMOS UNA PROMESA CUANDO LLAMEN A LA FUNCIÓN. SERÁ RESUELTA UNA
+		// VEZ QUE SEAN DESCARGADOS TODOS LOS RECURSOS. LA EJECUCIÓN DEL
+		// PROGRAMA QUE ESTÁ LUEGO DE LA LLAMADA A LA FUNCIÓN SE DETENDRÁ HASTA
+		// QUE LA PROMESA SEA RESUELTA. ESTO ES LO PROPIO DEL MODO DE TRABAJO
+		// ASINCRÓNICO EN JS. UTILIZAMOS AWAIT EN LA LLAMADA PARA ESPERAR EL
+		// CUMPLIMIENTO DE LA PROMESA.
 		return new Promise(function(resolve, reject) {
 
 
-			// ESTA FUNCION ORDENA LA DESCARGA DEL SIGUIENTE
-			// RECURSO DE LA LISTA, O DA POR FINALIZADO TODA
-			// ESTA TAREA SI LA TOTALIDAD DE LOS RECURSOS SE
-			// DESCARGARON.
+			// ESTA FUNCION ORDENA LA DESCARGA DEL SIGUIENTE RECURSO DE LA
+			// LISTA, O DA POR FINALIZADO TODA ESTA TAREA SI LA TOTALIDAD DE LOS
+			// RECURSOS SE DESCARGARON.
 			function downloadNextOrEnd (sourceIndexActual) {
 				if ((sourceIndexActual + 1) < sources.length) {
 					descargarRecurso(sourceIndexActual + 1);
@@ -595,11 +569,9 @@ async function descargarCurso () {
 			}
 
 				
-			// ESTA FUNCION CORROBORA SI EL ARCHIVO QUE
-			// SE VA A DESCARGAR SE ENCUENTRA O NO EN EL
-			// DISCO. ESTO ES UTIL PARA EVITAR REDESCARGAR
-			// COSAS QUE REALMENTE YA FUERON DESCARGADAS EN
-			// OCASIONES ANTERIORES.
+			// ESTA FUNCION CORROBORA SI EL ARCHIVO QUE SE VA A DESCARGAR SE
+			// ENCUENTRA O NO EN EL DISCO. ESTO ES UTIL PARA EVITAR REDESCARGAR
+			// COSAS QUE REALMENTE YA FUERON DESCARGADAS EN OCASIONES ANTERIORES.
 			function isInDisc (sourceIndex) {
 				var file = path.join("descargas", sources[sourceIndex].courseName + " - Aula Virtual", sources[sourceIndex].sectionName, sources[sourceIndex].subSectionName, sources[sourceIndex].fileName);
 				try {
@@ -615,9 +587,8 @@ async function descargarCurso () {
 			}
 
 
-			// ESTA FUNCION INICIA, MUESTRA EL PROGRESO
-			// Y DA PASO A LA FINALIZACIÓN DE LA DESCARGA
-			// DE UN RECURSO, SEGUN EL INDICE DEL MISMO
+			// ESTA FUNCION INICIA, MUESTRA EL PROGRESO Y DA PASO A LA FINALIZACIÓN
+			// DE LA DESCARGA DE UN RECURSO, SEGUN EL INDICE DEL MISMO
 			function descargarRecurso(sourceIndex) {
 
 				
