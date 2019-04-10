@@ -101,8 +101,8 @@ a = retry(function() {
 		// Y CONFIGURAR UNA NUEVA PAGINA/PESTAÑA
 		console.info("\n▪ DESCARGANDO CURSO\n");
 		const browser = await puppeteer.launch({
-			headless: _config["puppeteer_headless"], // FALSE: MUESTRA EL NAVEGADOR MARIONETA
-			args: [`--window-size=${_config["puppeteer_window_width"]},${_config["puppeteer_window_height"]}`]
+			headless: _config.puppeteer_headless, // FALSE: MUESTRA EL NAVEGADOR MARIONETA
+			args: [`--window-size=${_config.puppeteer_window_width},${_config.puppeteer_window_height}`]
 		}); 
 		process.on('unhandledRejection', (reason, p) => {
 			// console.error('Unhandled Rejection at: Promise', p, 'reason:', reason);
@@ -302,7 +302,7 @@ a = retry(function() {
 						"background": "#00ff1936",
 						"border-radius": "5px",
 						"padding": "5px 10px"
-					})
+					});
 				}
 				return _BLACKLIST_TIPOS.indexOf(tipo) === -1;
 			}
@@ -340,13 +340,15 @@ a = retry(function() {
 					// EN FORMA DE CONTENEDORES, SI NO QUE UBICA LAS ETIQUETAS COMO
 					// UN ITEM MAS DE LA LISTA DE RECURSOS, AL MISMO NIVEL JERÁRQUICO.
 					var subSectionName = "";
+					var section_prev_name = "";
+					var section_i_name = "";
 					var itemEnLista_prev = $(item).closest(".activity"); // Valor inicial
 					var itemEnLista_i = $(item).closest(".activity").next(); // Valor inicial
 					do {
-						var itemEnLista_i = itemEnLista_prev;
-						var itemEnLista_prev = itemEnLista_i.prev();
-						var section_i_name = itemEnLista_i.closest(".course-content ul li.section.main").attr("aria-label");
-						var section_prev_name = itemEnLista_prev.closest(".course-content ul li.section.main").attr("aria-label");
+						itemEnLista_i = itemEnLista_prev;
+						itemEnLista_prev = itemEnLista_i.prev();
+						section_i_name = itemEnLista_i.closest(".course-content ul li.section.main").attr("aria-label");
+						section_prev_name = itemEnLista_prev.closest(".course-content ul li.section.main").attr("aria-label");
 						// itemEnLista_i.css("background-color", color_subSection); // COLOREA LOS NOMBRES DE ARCHIVO EN LA CAPTURA DE PANTALLA DEL SITIO SEGUN LA SUBSECCION A LA QUE PERTENEZCAN
 						if (itemEnLista_prev.hasClass("modtype_label")) {
 							subSectionName = itemEnLista_prev.text().replace(/(^\s+|\s+$)/gi, ""); // ELIMINAMOS ESPACIOS EN BLANCO AL INICIO Y AL FINAL DEL STRING;
@@ -505,7 +507,7 @@ a = retry(function() {
 						headers: {Cookie: loginCookie[0].name + "=" + loginCookie[0].value}, // PASAMOS LA COOKIE DE SESION DE USUARIO PARA PODER ACCEDER A LA DESCARGA
 						rejectUnauthorized: false, // NO ESTOY SEGURO DE QUE HACE ESTO... PERO SIN ESTO LA DESCARGA ES RECHAZADA. NO TENGO GANAS DE HILAR FINO AHORA
 						method: (descargarCuerpo) ? "GET" : "HEAD" // EL METODO "HEAD" SOLO DESCARGA LAS CABECERAS, CON "GET" SE OBTIENE EL CUERPO TAMBIEN.
-					}
+					};
 
 					// CONFIGURACIONES ADICIONALES PARA EL ANALISIS DE CARPETAS DEL MOODLE
 					if (sources[sourceIndex].isMoodleFolder_id !== null) {
@@ -513,7 +515,7 @@ a = retry(function() {
 						requestOptions.qs = {
 							id: sources[sourceIndex].isMoodleFolder_id, // [NUM] ESTE PARAMETRO SOLO ES USADO CUANDO SE SOLICITA LA DESCARGA DE UNA CARPETA DEL MOODLE. SIN EL MISMO, LA DESCARGA NO PUEDE REALIZARSE. PARA LOS OTROS TIPOS DE RECURSOS NO ES NECESARIO USARLO.
 							// "sesskey": "Z2mn5nZrB8" // ESTE PARÁMETRO TAMBIÉN ES ENVIADO CUANDO EL NAVEGADOR SOLICITA LA DESCARGA DE LA CARPETA, PERO NO ES NECESARIO SEGUN LAS PRUEBAS QUE ESTUVE HACIENDO. ADEMAS, OBTENER SU VALOR CORRECTO RESULTA COMPLICADO Y NO TIENE SENTIDO.
-						}
+						};
 					}
 
 					request(requestOptions, function(error, res) {
@@ -589,9 +591,9 @@ a = retry(function() {
 								}
 							}
 						}
-					})
+					});
 				})(0);
-			})
+			});
 		}
 		console.info("  ▪ Analizando tipos de archivos...");
 		await analizarRecursos();
@@ -680,7 +682,7 @@ a = retry(function() {
 							headers: {Cookie: loginCookie[0].name + "=" + loginCookie[0].value}, // PASAMOS LA COOKIE DE SESION DE USUARIO PARA PODER ACCEDER A LA DESCARGA
 							rejectUnauthorized: false, // NO ESTOY SEGURO DE QUE HACE ESTO... PERO SIN ESTO LA DESCARGA ES RECHAZADA. NO TENGO GANAS DE HILAR FINO AHORA
 							method: "GET", // EL METODO "HEAD" SOLO DESCARGA LAS CABECERAS, CON "GET" SE OBTIENE EL CUERPO TAMBIEN.
-						}
+						};
 
 						// CONFIGURACIONES ADICIONALES PARA LA DESCARGA DE CARPETAS DEL MOODLE
 						if (sources[sourceIndex].isMoodleFolder_id !== null) {
@@ -688,7 +690,7 @@ a = retry(function() {
 							requestOptions.qs = {
 								id: sources[sourceIndex].isMoodleFolder_id, // [NUM] ESTE PARAMETRO SOLO ES USADO CUANDO SE SOLICITA LA DESCARGA DE UNA CARPETA DEL MOODLE. SIN EL MISMO, LA DESCARGA NO PUEDE REALIZARSE. PARA LOS OTROS TIPOS DE RECURSOS NO ES NECESARIO USARLO.
 								// "sesskey": "Z2mn5nZrB8" // ESTE PARÁMETRO TAMBIÉN ES ENVIADO CUANDO EL NAVEGADOR SOLICITA LA DESCARGA DE LA CARPETA, PERO NO ES NECESARIO SEGUN LAS PRUEBAS QUE ESTUVE HACIENDO. ADEMAS, OBTENER SU VALOR CORRECTO RESULTA COMPLICADO Y NO TIENE SENTIDO.
-							}
+							};
 						}
 
 						// INICIAMOS LA DESCARGA
@@ -746,7 +748,7 @@ a = retry(function() {
 					}
 				}
 				descargarRecurso(0);
-			})
+			});
 		}
 
 
