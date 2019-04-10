@@ -43,6 +43,7 @@ a = retry(function() {
 */
 
 
+// FUNCIONES RELACIONADS AL MENU DE OPCIONES
 async function printAbout () {
 	term.clear();
 	term.brightBlue.bold("\nInformación acerca de este programa.\n\n");	
@@ -53,6 +54,38 @@ async function printAbout () {
 	await term.singleColumnMenu(['» Volver al menu principal  '], {leftPadding: "    "}).promise;
 }
 
+async function printMenu () {
+	term.clear();
+	term.brightBlue.bold('\nBienvenido, ¿que desea hacer?\n') ;
+	var items = [
+		'» Descargar un curso de mi cuenta de Moodle  ',
+		'» Configurar esta utilidad  ',
+		'» Información acerca de esta utilidad  ',
+		'» Salir  '
+	];
+	
+	var opcionElegida = await term.singleColumnMenu(items, {leftPadding: "    "}).promise;
+	term.grabInput(false);
+	switch (opcionElegida.selectedIndex) {
+		case 0:
+			await descargarCurso();
+			await printMenu();
+			break;
+		case 1:
+			await printMenu();
+			break;
+		case 2:
+			await printAbout();
+			await printMenu();
+			break;
+		case 3:
+			term.processExit();
+			process.exit();
+			break;
+		default:
+			console.log("Opción no permitida.");
+	}
+}
 
 
   
@@ -61,38 +94,7 @@ async function printAbout () {
 	
 
 	// MOSTRAMOS UN MENU AL USUARIO
-	await (async function menu () {
-		term.clear();
-		term.brightBlue.bold('\nBienvenido, ¿que desea hacer?\n') ;
-		var items = [
-			'» Descargar un curso de mi cuenta de Moodle  ',
-			'» Configurar esta utilidad  ',
-			'» Información acerca de esta utilidad  ',
-			'» Salir  '
-		];
-		
-		var opcionElegida = await term.singleColumnMenu(items, {leftPadding: "    "}).promise;
-		term.grabInput(false);
-		switch (opcionElegida.selectedIndex) {
-			case 0:
-				await descargarCurso();
-				await menu();
-				break;
-			case 1:
-				await menu();
-				break;
-			case 2:
-				await printAbout();
-				await menu();
-				break;
-			case 3:
-				term.processExit();
-				process.exit();
-				break;
-			default:
-	
-		}
-	})();
+	await printMenu();
 
 
 	// ESTA FUNCION ES LA ENCARGADA DE INICIAR EL
