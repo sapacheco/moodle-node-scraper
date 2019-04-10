@@ -43,6 +43,16 @@ a = retry(function() {
 */
 
 
+async function printAbout () {
+	term.clear();
+	term.brightBlue.bold("\nInformación acerca de este programa.\n\n");	
+	term.bold("    Desarrollador:").strike(" Sergio Pacheco (sergioarielpacheco@gmail.com).\n\n");
+	term.bold("    Renuncia de responsabilidad:").strike(" --completar--.\n\n");
+	term.bold("    Licencia:").strike(" --completar--.\n\n");
+	term.bold("    Versión:").strike(" --completar--.\n\n");
+	await term.singleColumnMenu(['» Volver al menu principal  '], {leftPadding: "    "}).promise;
+}
+
 
 
   
@@ -50,15 +60,16 @@ a = retry(function() {
 (async () => {
 	
 
+	// MOSTRAMOS UN MENU AL USUARIO
 	await (async function menu () {
 		term.clear();
-		term.brightBlue.bold('\nBienvenido, ¿que desea?\n') ;
+		term.brightBlue.bold('\nBienvenido, ¿que desea hacer?\n') ;
 		var items = [
 			'» Descargar un curso de mi cuenta de Moodle  ',
-			'» Configurar este programa  ',
-			'» Información acerca de este programa  ',
+			'» Configurar esta utilidad  ',
+			'» Información acerca de esta utilidad  ',
 			'» Salir  '
-		] ;
+		];
 		
 		var opcionElegida = await term.singleColumnMenu(items, {leftPadding: "    "}).promise;
 		term.grabInput(false);
@@ -71,13 +82,7 @@ a = retry(function() {
 				await menu();
 				break;
 			case 2:
-				term.clear();
-				term.brightBlue.bold("\nInformación acerca de este programa.\n\n");	
-				term.bold("    Desarrollador:").strike(" Sergio Pacheco (sergwioarielpacheco@gmail.com).\n\n");
-				term.bold("    Renuncia de responsabilidad:").strike(" --completar--.\n\n");
-				term.bold("    Licencia:").strike(" --completar--.\n\n");
-				term.bold("    Versión:").strike(" --completar--.\n\n");
-				await term.singleColumnMenu(['» Volver al menu principal  '], {leftPadding: "    "}).promise;
+				await printAbout();
 				await menu();
 				break;
 			case 3:
@@ -92,8 +97,7 @@ a = retry(function() {
 
 	// ESTA FUNCION ES LA ENCARGADA DE INICIAR EL
 	// PROCESO DE SELECCION Y DESCARGA DE UN CURSO
-	//		TODO: ¿SEGMENTAR ESTA MEGA FUNCION EN PARTES MAS CHICAS?
-	// 		 		
+	// TODO: ¿SEGMENTAR ESTA MEGA FUNCION EN PARTES MAS CHICAS?
 	async function descargarCurso () {
 
 		
