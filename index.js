@@ -257,23 +257,6 @@ async function descargarCurso () {
 		// PRIORIDAD IMPLEMENTAR ESTO. HAY QUE TRABAJAR
 		// UN POCO EL CODIGO COMENTADO RELACIONADO A ESO.
 		function filter(index, item) {
-			// FILTRADO DE NOMBRE DE ARCHIVOS - DESACTIVADO, ACONDICIONAR ANTES DE ACTIVAR
-			//var WHITE_LIST = 'pdf Exercise Teil Präsentation Tutor Uebung Zusatz Übung Lösung Vorlesung Aufzeichnung Multiplizierer Klausur Tutorial History supplementary video pdfs interfaces'.toLowerCase().split(' '),
-			//BLACK_LIST = 'Forum Gruppe Sprechstunden'.toLowerCase().split(' ');
-			/*var txt = jQuery(item).text().toLowerCase();
-			function reduceFn(isListed, current) {
-				return isListed || ~txt.indexOf(current);
-			}
-
-
-			var blacklisted = BLACK_LIST.reduce(reduceFn, false);
-			var whitelisted = WHITE_LIST.reduce(reduceFn, false);
-			if (!whitelisted || blacklisted) console.error("BLACKLISTED:", txt);
-			else console.log("WHITELISTED:", txt);
-			return whitelisted && !blacklisted;*/
-
-			
-			// FILTRADO DE TIPOS DE ARCHIVOS
 			var tipo = (jQuery(item).find("img").attr("src")).replace(/\/\d+(?=\/)/gi, ""); // ELIMINAMOS LA PARTE QUE CONTIENE NUMEROS CAMBIANTES EN LA URL
 			if(recursos_blackListTiposGenericos.indexOf(tipo) === -1 ) {
 				jQuery(item).css({
