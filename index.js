@@ -103,7 +103,7 @@ async function launchPuppeteer () {
 		args: [`--window-size=${_config.puppeteer_window_width},${_config.puppeteer_window_height}`]
 	}); 
 	process.on('unhandledRejection', (reason, p) => {
-		// console.error('Unhandled Rejection at: Promise', p, 'reason:', reason);
+		console.error('Unhandled Rejection at: Promise', p, 'reason:', reason);
 		console.error('\n  ✖ Se produjo un error: Rechazo de promesa no manejado.');
 		console.info("\n▪ OPERACIÓN FINALIZADA\n");
 		browser.close();
@@ -217,7 +217,7 @@ async function descargarCurso () {
 	console.info("  ▪ Obteniendo lista de recursos disponibles para la descarga...");
 	await page.goto(_personalData["curso-url"], {waitUntil: 'networkidle2'});
 	await page.addScriptTag({path: 'jquery-3.2.1.min.js'}); // CARGA LOCAL, AUNQUE TAMBIEN PUEDE SER ONLINE: await page.addScriptTag({url: 'https://code.jquery.com/jquery-3.2.1.min.js'});
-	let sources = await page.evaluate(() => {
+	let sources = await page.evaluate((myConfig) => {
 		
 		
 		// PARA USARLO: var color = randomColor.next().value;
@@ -241,52 +241,11 @@ async function descargarCurso () {
 		})();
 
 
-		// AQUI HAY UNA LISTA NO EXHAUSTIVA DE TODOS LOS TIPOS
-		// DE ARCHIVOS QUE SE PUEDEN ENCONTRAR EN EL AULA VIRTUAL.
-		// SOLO AQUELLOS QUE NO ESTEN COMENTADOS SERAN DESCARGADOS.
-		// ESTA FORMA DE CATEGORIZACIÓN NO ES MUY ROBUSTA A CAUSA
-		// DE QUE PARA SABER CUANTOS TIPOS DE ARCHIVOS HAY, BUSCA
-		// LOS ICONOS QUE LA PAGINA MUESTRA, Y COPIA SUS URLs. SI
-		// EN ALGUN MOMENTO CAMBIAN ESTAS DIRECCIONES, EL PROGRAMA
-		// NO HARÁ UN FILTRADO DE CUALES ARCHIVOS DESCARGAR Y CUALES NÓ.
-		//
-		// AQUI TAMBIEN PONGO UN CODIGO PARA OBTENER UNA LISTA DE LOS TIPOS DE ARCHIVO EN UN CURSO.
-		// PARA COMPLETAR LA _BLACKLIST_TIPOS EN ALGUN MOMENTO SI ES NECESARIO. PARA EJECUTARLO HAY
-		// QUE EVALUARLO CON LA CONSOLA JS DEL NAVEGADOR ESTANDO EN LA PAGINA DEL CURSO EN CUESTIÓN:
-		// 	   tipos = new Set(); jQuery(".activityinstance").each(function(){tipos.add($(this).find("img").attr("src"))}); tipos
-		var _BLACKLIST_TIPOS = [
-			"https://aulavirtual.fio.unam.edu.ar/theme/image.php/clean/forum/1551107122/icon",
-			"https://aulavirtual.fio.unam.edu.ar/theme/image.php/clean/page/1551107122/icon",
-			// "https://aulavirtual.fio.unam.edu.ar/theme/image.php/clean/core/1551107122/f/pdf-24",
-			"https://aulavirtual.fio.unam.edu.ar/theme/image.php/clean/feedback/1551107122/icon",
-			"https://aulavirtual.fio.unam.edu.ar/theme/image.php/clean/attendance/1551107122/icon",
-			// "https://aulavirtual.fio.unam.edu.ar/theme/image.php/clean/core/1551107122/f/powerpoint-24",
-			"https://aulavirtual.fio.unam.edu.ar/theme/image.php/clean/url/1551107122/icon",
-			// "https://aulavirtual.fio.unam.edu.ar/theme/image.php/clean/folder/1551107122/icon",
-			// "https://aulavirtual.fio.unam.edu.ar/theme/image.php/clean/core/1551107122/f/impress-24",
-			// "https://aulavirtual.fio.unam.edu.ar/theme/image.php/clean/core/1551107122/f/mpeg-24",
-			// "https://aulavirtual.fio.unam.edu.ar/theme/image.php/clean/core/1551107122/f/png-24",
-			"https://aulavirtual.fio.unam.edu.ar/theme/image.php/clean/assign/1551107122/icon",
-			// "https://aulavirtual.fio.unam.edu.ar/theme/image.php/clean/core/1551107122/f/document-24",
-			"https://aulavirtual.fio.unam.edu.ar/theme/image.php/clean/quiz/1551107122/icon",
-			// "https://aulavirtual.fio.unam.edu.ar/theme/image.php/clean/core/1551107122/f/flash-24",
-			// "https://aulavirtual.fio.unam.edu.ar/theme/image.php/clean/core/1551107122/f/jpeg-24",
-			// "https://aulavirtual.fio.unam.edu.ar/theme/image.php/clean/core/1551107122/f/archive-24",
-			"https://aulavirtual.fio.unam.edu.ar/theme/image.php/clean/core/1551954692/f/sourcecode-24", // TODO: Estos son links a paginas y otras cosas. Extraerlos? Ej. En taller de Ingles 1
-			"https://aulavirtual.fio.unam.edu.ar/theme/image.php/clean/lesson/1551954692/icon", // Formularios.
-			"https://aulavirtual.fio.unam.edu.ar/theme/image.php/more/page/1551954692/icon", // Más información. Ej. la materia "Informática" pone códigos de ejemplo en estos links
-			"https://aulavirtual.fio.unam.edu.ar/theme/image.php/more/url/1551954692/icon", // A veces son links directos que conducen a páginas de internet
-			"https://aulavirtual.fio.unam.edu.ar/theme/image.php/more/core/1551954692/f/sourcecode-24",
-			"https://aulavirtual.fio.unam.edu.ar/theme/image.php/more/data/1551954692/icon", // Ej. Horarios de consultas
-			"https://aulavirtual.fio.unam.edu.ar/theme/image.php/clean/glossary/1551954692/icon", // Glosarios. Agregar funcionalidad para quitarlos de la lista negra?
-		];
-
-
 		// ELIMINAMOS LA PARTE QUE CONTIENE NUMEROS EN 
 		// LA URL DE LOS DIFERENTES TIPOS DE RECURSOS
 		// PORQUE ESTOS NÚMEROS CAMBIAN CONSTANTEMENTE
 		// QUITANDOLE ROBUSTES AL PROGRAMA.
-		_BLACKLIST_TIPOS = _BLACKLIST_TIPOS.map((i) => i.replace(/\/\d+(?=\/)/gi, ""));
+		var recursos_blackListTiposGenericos = myConfig.recursos_blackListTipos.map((i) => i.replace(/\/\d+(?=\/)/gi, ""));
 
 
 		// ESTA FUNCION DETERMINA SI EL ARCHIVO
@@ -316,14 +275,14 @@ async function descargarCurso () {
 			
 			// FILTRADO DE TIPOS DE ARCHIVOS
 			var tipo = (jQuery(item).find("img").attr("src")).replace(/\/\d+(?=\/)/gi, ""); // ELIMINAMOS LA PARTE QUE CONTIENE NUMEROS CAMBIANTES EN LA URL
-			if(_BLACKLIST_TIPOS.indexOf(tipo) === -1 ) {
+			if(recursos_blackListTiposGenericos.indexOf(tipo) === -1 ) {
 				jQuery(item).css({
 					"background": "#00ff1936",
 					"border-radius": "5px",
 					"padding": "5px 10px"
 				});
 			}
-			return _BLACKLIST_TIPOS.indexOf(tipo) === -1;
+			return recursos_blackListTiposGenericos.indexOf(tipo) === -1;
 		}
 
 
@@ -396,7 +355,7 @@ async function descargarCurso () {
 			console.table(sourceInfo);
 		
 		return sourceInfo;
-	});
+	}, _config);
 	term.brightGreen("  ✓ Total de archivos a descargar: " + sources.length + "\n\n");
 	// console.info("  ✓ Total de archivos a descargar: " + sources.length + "\n");
 
