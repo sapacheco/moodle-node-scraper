@@ -42,16 +42,25 @@ a = retry(function() {
 }, 3000)
 */
 
+// -------------------------------------------------------------------------------------------------
+//						 					UTILIDADES
+// -------------------------------------------------------------------------------------------------
+
+
+
+
+
 
 // -------------------------------------------------------------------------------------------------
 //						 	FUNCIONES RELACIONADAS AL MENU DE OPCIONES
 // -------------------------------------------------------------------------------------------------
-async function launchMenu () {
-	term.clear();
+async function launchMenu (clearTerminal = true) {
+	if(clearTerminal === true) term.clear();
 	term.brightBlue.bold('\nBienvenido, ¿que desea hacer?\n') ;
 	var items = [
 		'» Descargar un curso de mi cuenta de Moodle  ',
 		'» Configurar esta utilidad  ',
+		'» Reportar un error  ',
 		'» Acerca de esta utilidad  ',
 		'» Salir  '
 	];
@@ -61,16 +70,19 @@ async function launchMenu () {
 	switch (opcionElegida.selectedIndex) {
 		case 0:
 			await descargarCurso();
-			await launchMenu();
+			await launchMenu(false); // 'false' porque caso contrario borraba algunas lineas importantes que imprimía la terminal al terminar de descargar un curso
 			break;
 		case 1:
 			await launchMenu();
 			break;
 		case 2:
+			await launchMenu();
+			break;			
+		case 3:
 			await printAbout();
 			await launchMenu();
 			break;
-		case 3:
+		case 4:
 			term.processExit();
 			process.exit();
 			break;
@@ -80,11 +92,20 @@ async function launchMenu () {
 }
 
 async function printAbout () {
+	var disclaimer = `
+		ESTE SOFTWARE SE PROPORCIONA "TAL CUAL ESTÁ", SIN GARANTÍAS EXPRESAS O
+		IMPLÍCITAS DE NINGÚN TIPO, INCLUYENDO, PERO NO LIMITADO, A LAS GARANTÍAS
+		DE COMERCIABILIDAD, IDONEIDAD PARA UN PROPÓSITO PARTICULAR, TÍTULO Y NO
+		INFRACCIÓN. EN NINGÚN CASO, LOS TITULARES DEL DERECHO DE  AUTOR O CUALQUIERA
+		QUE DISTRIBUYA EL SOFTWARE SERÁN CONFIABLES RESPECTO A CUALQUIER DAÑO U OTRAS
+		RESPONSABILIDADES,YA SEA CONTRATO, CORTE U OTRO MODO, DERIVADOS, FUERA DE O
+		EN RELACIÓN CON EL SOFTWARE O EL USO O DE OTRAS REPARACIONES EN EL SOFTWARE.`;
+
 	term.clear();
 	term.brightBlue.bold("\nInformación acerca de este programa.\n\n");	
-	term.bold("    Desarrollador:").strike(" Sergio Pacheco (sergioarielpacheco@gmail.com).\n\n");
+	term.bold("    Desarrollador:").strike(" Sergio Pacheco (sergioarielpacheco@gmail.com)\n\n");
 	term.bold("    Descripción del programa:").strike(" --completar--.\n\n");
-	term.bold("    Renuncia de responsabilidad:").strike(" --completar--.\n\n");
+	term.bold("    Renuncia de responsabilidad:").strike("\n" + disclaimer + ".\n\n");
 	term.bold("    Licencia:").strike(" --completar--.\n\n");
 	term.bold("    Versión:").strike(" --completar--.\n\n");
 	await term.singleColumnMenu(['» Volver al menu principal  '], {leftPadding: "    "}).promise;
@@ -94,10 +115,12 @@ async function printAbout () {
 // -------------------------------------------------------------------------------------------------
 //						 	FUNCIONES RELACIONADAS A DESCARGAR UN CURSO
 // -------------------------------------------------------------------------------------------------
+
+
+// INICIA EL NAVEGADOR MARIONETA Y ABRE
+// Y CONFIGURA UNA NUEVA PAGINA/PESTAÑA
 async function launchPuppeteer () {
-	// INICIAR EL NAVEGADOR MARIONETA Y ABRIR
-	// Y CONFIGURAR UNA NUEVA PAGINA/PESTAÑA
-	console.info("\n▪ DESCARGANDO CURSO\n");
+	console.info("\n▪ DESCARGAR UN CURSO\n");
 	const browser = await puppeteer.launch({
 		headless: _config.puppeteer_headless, // FALSE: MUESTRA EL NAVEGADOR MARIONETA
 		args: [`--window-size=${_config.puppeteer_window_width},${_config.puppeteer_window_height}`]
@@ -110,14 +133,14 @@ async function launchPuppeteer () {
 	});
 	let page = await browser.newPage();
 	await page.setCacheEnabled(true); // TODO: Es mejor false?...
-	return page;
+	return [browser, page];
 }
 
 
+// CONECTA CON EL SITIO (aula virtual)
+// Y ESPERA A LA CARGA DEL CONTENIDO.
+// TRAS LA CONEXIÓN, DEVUELVE LA COOKIE DEL SITIO.
 async function connectToMoodle (puppeteerPage) {
-	// CONECTAR CON EL SITIO (aula virtual)
-	// Y ESPERAR A LA CARGA DEL CONTENIDO.
-	// TRAS LA CONEXIÓN, DEVUELVE LA COOKIE DEL SITIO.
 	try {
 		console.info("  ▪ Intentando conectarse con el aula virtual...");
 		await puppeteerPage.goto(_personalData["login-url"], { waitUntil: 'networkidle2' });
@@ -148,7 +171,6 @@ async function tryMoodleLogin (puppeteerPage, cookieBeforeLogin) {
 	term.brightBlue.bold("\n  » Introduzca su contraseña de Moodle: ") ;
 	var pass = await term.inputField({echoChar: true}).promise;
 	term.grabInput(false);
-
 
 
 	await puppeteerPage.type('#username', user);
@@ -185,13 +207,41 @@ async function tryMoodleLogin (puppeteerPage, cookieBeforeLogin) {
 }
 
 
+// SOLICITA AL USUARIO LA INTRODUCCIÓN DE LA URL DE UN 
+// CURSO DE MOODLE Y NAVEGA AL MISMO A TRAVÉS DE PUPPETEER
+async function connectToMoodleCourse (puppeteerPage) {
+	try {
+		// console.info("  ▪ Intentando conectarse con el aula virtual...");
+		term.brightBlue.bold("  » Introduzca la url del curso de Moodle que desea descargar:");
+		term.gray.bold("\n    https://aulavirtual.fio.unam.edu.ar/course/view.php?id=##\n    ");
+		var courseUrl = await term.inputField().promise;
+		term.grabInput(false);
+		await puppeteerPage.goto(courseUrl, {waitUntil: 'networkidle2'});
+
+		term.brightGreen("\n  ✓ Conexión establecida.\n\n");
+		return courseUrl;
+	} catch (error) {
+		// console.log(error);
+		term.brightYellow("\n\n  ⚠️ No resultó posible encontrar el curso solicitado.\n");
+		term.brightYellow("    Quizás la url es incorrecta o existen problemas\n");
+		term.brightYellow("    con la conexión a internet. Reitentar...\n\n");
+		connectToMoodleCourse(puppeteerPage);
+	}
+}
+
+
 // UNA VEZ EN LA PAGINA DEL CURSO DEL CUAL SE QUIERE DESCARGAR LOS ARCHIVOS,
 // REALIZAMOS SCRAP DE LA INFORMACION DE LOS MISMOS (LINK DE DESCARGA, NOMBRE, SECCION,
 // ETC) Y LOS CARGAMOS EN UN ARRAY (sources) QUE USAREMOS LUEGO PARA REALIZAR LA DESCARGA
 // TODO: Partir esta funcion en pedazos mas pequeños?
 async function searchForMoodleSources (puppeteerPage) {
-	console.info("  ▪ Obteniendo lista de recursos disponibles para la descarga...");
-	await puppeteerPage.goto(_personalData["curso-url"], {waitUntil: 'networkidle2'});
+	// console.info("  ▪ Obteniendo lista de recursos disponibles para la descarga...");
+	// await puppeteerPage.goto(_personalData["curso-url"], {waitUntil: 'networkidle2'});
+
+
+
+
+	
 	await puppeteerPage.addScriptTag({path: 'jquery-3.2.1.min.js'}); // CARGA LOCAL, AUNQUE TAMBIEN PUEDE SER ONLINE: await page.addScriptTag({url: 'https://code.jquery.com/jquery-3.2.1.min.js'});
 	let sources = await puppeteerPage.evaluate((myConfig) => {
 		
@@ -332,11 +382,333 @@ async function savePagePreview (puppeteerPage, courseName) {
 		await puppeteerPage._client.send('Emulation.clearDeviceMetricsOverride'); // PARA QUE EL ANCHO DE LA PAGINA SEA EL MISMO QUE EL DE LA VENTA DEL NAVEGADOR
 		await puppeteerPage.screenshot({ path: './descargas/' + courseName + ' - Aula Virtual/Contenido del curso.png', fullPage: true });
 		await puppeteerPage.pdf({path: './descargas/' + courseName + ' - Aula Virtual/Contenido del curso.pdf', format: 'A4', printBackground: true}); // TODO: Es util?
-		term.brightGreen('  ✓ Guardada en ' + '"./descargas/' + courseName + ' - Aula Virtual/Contenido del curso.png"\n\n'); 
+		term.brightGreen('  ✓ Guardada en ' + '"./descargas/' + courseName + ' - Aula Virtual/Contenido del curso.png"\n'); 
 		term.brightGreen('  ✓ Guardada en ' + '"./descargas/' + courseName + ' - Aula Virtual/Contenido del curso.pdf"\n\n'); 
 	} catch (e) {
 		term.brightYellow("  ⚠️ Existieron algunos problemas, la operación pudo o nó haberse completada de forma correcta: " + e + "\n\n");
 	}
+}
+
+
+// ESTA FUNCIÓN DESCARGA SOLAMENTE LA INFORMACION DE CABECERA DE LOS ENLACES
+// CORRESPONDIENTES A CADA UNO DE LOS RECURSOS. EL PROPÓSITO ES OBTENER
+// INFORMACIÓN ADICIONAL COMO LA EXTENSIÓN DEL NOMBRE DEL ARCHIVO Y SU
+// TAMAÑO. ESTO SERVIRÁ PARA TRABAJAR LUEGO CON EL SISTEMA DE ARCHIVOS. POR
+// OTRO LADO, EN EL MOODLE A VECES SUCEDE QUE LOS RECURSOS SON AGREGADOS NO
+// COMO UN ENLACE DIRECTO, SI NÓ QUE EL ENLACE DE LA PAGINA PRINCIPAL
+// CONDUCE A OTRA PAGINA WEB DONDE ESTA EMBEBIDO, O "INCRUSTADO", EL
+// VERDADERO ARCHIVO. EN ESTE CASO LO QUE OBTENEMOS COMO RESPUESTA DE LA
+// PETICIÓN NO ES UN ARCHIVO, SI NÓ UN DOCUMENTO HTML. NOSOTROS QUEREMOS EL
+// ARCHIVO, POR LO QUE ES NECESARIO HACER UN PEQUEÑO PROCESAMIENTO DEL
+// CUERPO DE LA RESPUESTA (EL CODIGO HTML) A FIN DE ENCONTRAR EL LINK DEL
+// VERDADERO ARCHIVO (CASO CONTRARIO ESTARIAMOS DESCARGANDO SOLO EL HTML)
+function analizarRecursos(sources, accessCookie) {
+	console.info("  ▪ Analizando tipos de archivos...");
+
+	
+	// ESTA FUNCIÓN PROCESA CODIGO HTML PROVENIENTE DE UNA PAGINA DE MOODLE
+	// DONDE SE ENCUENTRE EMBEBIDO UN RECURSO, CON EL OBJETIVO DE EXTRAER EL
+	// LINK DEL MISMO
+	function buscarRecursosEnHTML (htmlCode) {
+		var $ = cheerio.load(htmlCode);
+		var sourceLink = "";
+
+		// VERIFICAMOS SI EXISTEN URLs EN LOS LUGARES
+		// QUE ESPERAMOS QUE HAYAN (SON PLANTILLAS)
+		if ($(".resourcecontent").length > 0) {
+			// PDFs
+			sourceLink = $(".resourcecontent").html().match(/https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)/gi)[0];
+		
+		} else if ($(".resourceworkaround").length > 0) {
+			// OTROS RECURSOS
+			sourceLink = $(".resourceworkaround").html().match(/https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)/gi)[0];
+		
+		} else if ($(".singlebutton > form:nth-child(1)").length > 0) {
+			// CARPETAS (NOTA: Las carpetas vacias arrojarán un error, que ya está manejado en el código)
+			sourceLink = $(".singlebutton > form:nth-child(1)").attr("action");
+		
+		} else if($(".urlworkaround").length > 0) {
+			// Links
+			sourceLink = $(".urlworkaround").html().match(/https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)/gi)[0];
+		}
+		// ESTO FUNCIONA SOLAMENTE CUANDO headless = true;
+		// SI NO HAY COINCIDENCIA CON NINGUNA
+		// DE LAS PLANTILLAS ANTERIORES
+		if (sourceLink === null || sourceLink === "") {
+			term.brightYellow("\t    ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄\n");
+			term.brightYellow("\t    ⚠️ Atención: No se pudo obtener la dirección del recurso. Se\n");
+			term.brightYellow("\t    descargará una imagen con un símbolo  de 'error' en su lugar\n");
+			term.brightYellow("\t    ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀\n");
+			sourceLink = "https://upload.wikimedia.org/wikipedia/commons/5/5f/Icon_Simple_Error.png"; // ESTE LINK CONDUCE A UNA IMAGEN DE ERROR, CON LICENCIA CC0 (DOMINIO PUBLICO). EL SCRIPT LA DESCARGARÁ EN LUGAR DEL RECURSO NO HALLADO.
+		}
+
+		// DEVOLVEMOS LA DIRECCIÓN DEL RECURSO
+		return sourceLink;
+	}
+
+
+	// DEVOLVEMOS UNA PROMESA CUANDO LLAMEN A LA FUNCIÓN. SERÁ RESUELTA UNA
+	// VEZ QUE SEAN ANALIZADOS TODOS LOS RECURSOS. LA EJECUCIÓN DEL PROGRAMA
+	// QUE ESTÁ LUEGO DE LA LLAMADA A LA FUNCIÓN SE DETENDRÁ HASTA QUE LA
+	// PROMESA SEA RESUELTA. ESTO ES LO PROPIO DEL MODO DE TRABAJO
+	// ASINCRÓNICO EN JS. UTILIZAMOS AWAIT EN LA LLAMADA PARA ESPERAR EL
+	// CUMPLIMIENTO DE LA PROMESA.
+	return new Promise(function(resolve, reject) {
+
+
+		// ESTA FUNCIÓN INICIA LA DESCARGA DE LA INFORMACIÓN DE CADA RECURSO
+		// Y PROCESA LA RESPUESTA. SE DECARGAN SOLAMENTE SUS CABECERAS,
+		// SALVO CASO QUE SE TRATE DE UN ARCHIVO HTML: ENTONCES SE
+		// DESCARGARÁ EL CUERPO COMPLETO, A FIN DE PROCESARLO PARA ENCONTRAR
+		// EL LINK DEL RECURSO QUE ESTÁ EMBEBIDO DENTRO DEL MISMO Y QUE ES
+		// EL QUE VERDADERAMENTE QUEREMOS DESCARGAR LUEGO.
+		(function analizarRecurso(sourceIndex, descargarCuerpo = false) {
+			
+			
+			// CONFIGURAMOS LAS OPCIONES DE LA DESCARGA Y LA INICIAMOS
+			var requestOptions =  {
+				url: sources[sourceIndex].fileLink,
+				headers: {Cookie: accessCookie[0].name + "=" + accessCookie[0].value}, // PASAMOS LA COOKIE DE SESION DE USUARIO PARA PODER ACCEDER A LA DESCARGA
+				rejectUnauthorized: false, // NO ESTOY SEGURO DE QUE HACE ESTO... PERO SIN ESTO LA DESCARGA ES RECHAZADA. NO TENGO GANAS DE HILAR FINO AHORA
+				method: (descargarCuerpo) ? "GET" : "HEAD" // EL METODO "HEAD" SOLO DESCARGA LAS CABECERAS, CON "GET" SE OBTIENE EL CUERPO TAMBIEN.
+			};
+
+			// CONFIGURACIONES ADICIONALES PARA EL ANALISIS DE CARPETAS DEL MOODLE
+			if (sources[sourceIndex].isMoodleFolder_id !== null) {
+				requestOptions.strictSSL = false; // ES NECESARIO DESACTIVAR LAS DESCARGAS A TRAVES DE SSL SOLAMENTE PARA LAS CARPETAS DEL MOODLE, PARA LOS OTROS TIPOS RECURSOS ESTA LINEA PUEDE BORRARSE O USAR "TRUE".
+				requestOptions.qs = {
+					id: sources[sourceIndex].isMoodleFolder_id, // [NUM] ESTE PARAMETRO SOLO ES USADO CUANDO SE SOLICITA LA DESCARGA DE UNA CARPETA DEL MOODLE. SIN EL MISMO, LA DESCARGA NO PUEDE REALIZARSE. PARA LOS OTROS TIPOS DE RECURSOS NO ES NECESARIO USARLO.
+					// "sesskey": "Z2mn5nZrB8" // ESTE PARÁMETRO TAMBIÉN ES ENVIADO CUANDO EL NAVEGADOR SOLICITA LA DESCARGA DE LA CARPETA, PERO NO ES NECESARIO SEGUN LAS PRUEBAS QUE ESTUVE HACIENDO. ADEMAS, OBTENER SU VALOR CORRECTO RESULTA COMPLICADO Y NO TIENE SENTIDO.
+				};
+			}
+
+			request(requestOptions, function(error, res) {
+
+				
+				// SI SE PRODUCE UN ERROR, VOLVEMOS
+				// A INTENTAR DESCARGAR EL RECURSO
+				if (error) {
+					console.error(`  ✖ [${sourceIndex + 1}/${sources.length}] ${sources[sourceIndex].fileTitle}  →  Error. Reitentando...`);
+					analizarRecurso(sourceIndex);
+				
+					
+				// CASO CONTRARIO, PROCESAMOS Y OBTENEMOS 
+				// INFORMACIÓN DE INTERES DEL MISMO.
+				} else {
+					
+
+					// OBTENEMOS EL NOMBRE DE ARCHIVO ORIGINAL Y SU
+					// EXTENSIÓN. ESTA INFORMACIÓN VIENE EN LA CABECERA DE
+					// LA RESPUESTA. NO TODAS LAS RESPUESTAS LA INCLUYEN,
+					// PORQUE DEPENDE DEL CONTENIDO DE LAS MISMAS, CLARO
+					// ESTÁ.
+					if(res.headers['content-disposition']) {
+						var fileNameData = ((res.headers['content-disposition'].match(/filename=\"([^"]*)\"/gi))[0]).split(".");
+						if (fileNameData.length > 1) {
+							fileExtension = (fileNameData.slice(-1)).toString().slice(0, -1);
+							sources[sourceIndex].fileName = sources[sourceIndex].fileName + "." + fileExtension;
+							sources[sourceIndex].originalFileName = fileNameData[0].split('"').slice(-1).toString() + "." + fileExtension;
+						} 
+					}
+
+
+					// TAMBIEN OBTENEMOS EL TAMAÑO DEL ARCHIVO, LO CUAL
+					// NOS SERVIRA LUEGO PARA CORROBORAR SI EL MISMO YA
+					// FUE DESCARGADO Y SE ENCUENTRA EN DISCO O AUN NÓ.
+					// CON ESTO SE PUEDE EVITAR RE-DESCARGAR COSAS.
+					if(res.headers['content-length']) {
+						sources[sourceIndex].fileSize = +res.headers['content-length'];
+					}
+
+
+					// DETECTAMOS EL TIPO DEL CONTENIDO DE LA RESPUESTA.
+					// SI ES HTML, LO PROCESAREMOS LUEGO A FIN DE OBTENER 
+					// EL RECURSO QUE ESTÁ EMBEBIDO (INCRUSTADO) EN ÉL.
+					if (res.headers['content-type']) {
+						sources[sourceIndex].contentType = res.headers['content-type'];
+						if (descargarCuerpo === false) console.log(`\n    [${sourceIndex + 1}/${sources.length}] ${sources[sourceIndex].sectionName}:\n\t    Nombre: "${sources[sourceIndex].fileTitle}"\n\t    Tipo: ${res.headers['content-type']}`);
+						
+
+						// SI SE TRATA DE UN HTML CON UN RECURSO EMBEBIDO
+						// DENTRO, LO ANALIZAMOS A FIN DE ENCONTRAR LA
+						// VERDADERA DIRECCION DEL ARCHIVO
+						if (res.headers['content-type'].indexOf("html") != -1) {
+							if (res.body == "") {
+								console.log(`\t    El link conduce a un archivo HTML: Obteniendo recurso real...`); // ⤷
+								analizarRecurso(sourceIndex, true); // ANALIZAMOS EL CUERPO COMPLETO
+							} else {
+								var link = buscarRecursosEnHTML(res.body);
+								sources[sourceIndex].fileLink = link;
+								console.log(`\t    Recurso real: "...${(link).slice(-50)}"`); // ⟳↻
+								console.log(`\t    Obteniendo información del archivo...`); // ⟳↻
+								analizarRecurso(sourceIndex);
+							}
+							
+						// CASO CONTRARIO, PASAMOS AL SIGUIENTE RECURSO
+						} else {
+							if ((sourceIndex + 1) < sources.length) {
+								analizarRecurso(sourceIndex + 1);
+							} else {
+								term.brightGreen("\n  ✓ Archivos analizados.\n");
+								console.log("    Peso total de los recursos: " + ((sources.reduce((i,j)=>({fileSize: i.fileSize + j.fileSize}))).fileSize/1e6).toFixed(2) + " MB.\n\n");
+								resolve(sources);
+							}
+						}
+					}
+				}
+			});
+		})(0);
+	});
+}
+
+
+
+
+
+
+// ESTA FUNCION DESCARGA TODOS LOS RECURSOS QUE SE ENCUENTRAN LISTADOS EN LA
+// VARIABLE "sources". CONTIENE PARTES DEL TIPO ASYNCRÓNICO, ASÍ QUE AL
+// LLAMARLA, ES BUENO UTILIZAR "await" PARA EVITAR QUE EL RESTO DEL CODIGO
+// SE SIGA EJECUTANDO ANTES DE QUE TODOS LOS RECURSOS SE HAYAN DESCARGADO
+function descargarRecursos(sources, accessCookie) {
+	console.info("  ▪ Descargando archivos:\n");
+
+
+	// DEVOLVEMOS UNA PROMESA CUANDO LLAMEN A LA FUNCIÓN. SERÁ RESUELTA UNA
+	// VEZ QUE SEAN DESCARGADOS TODOS LOS RECURSOS. LA EJECUCIÓN DEL
+	// PROGRAMA QUE ESTÁ LUEGO DE LA LLAMADA A LA FUNCIÓN SE DETENDRÁ HASTA
+	// QUE LA PROMESA SEA RESUELTA. ESTO ES LO PROPIO DEL MODO DE TRABAJO
+	// ASINCRÓNICO EN JS. UTILIZAMOS AWAIT EN LA LLAMADA PARA ESPERAR EL
+	// CUMPLIMIENTO DE LA PROMESA.
+	return new Promise(function(resolve, reject) {
+
+
+		// ESTA FUNCION ORDENA LA DESCARGA DEL SIGUIENTE RECURSO DE LA
+		// LISTA, O DA POR FINALIZADO TODA ESTA TAREA SI LA TOTALIDAD DE LOS
+		// RECURSOS SE DESCARGARON.
+		function downloadNextOrEnd (sourceIndexActual) {
+			if ((sourceIndexActual + 1) < sources.length) {
+				descargarRecurso(sourceIndexActual + 1);
+			} else {
+				term.brightGreen("\n  ✓ Descargados todos los archivos. Podés encontrarlos en la carpeta:\n\n");
+				term.brightBlue.bold('    "./descargas/' + sources[0].courseName + ' - Aula Virtual"\n\n');
+				resolve(sources); // AL FINALIZAR TODAS LAS DESCARGAS, SE RESUELVE LA PROMESA
+			}
+		}
+
+			
+		// ESTA FUNCION CORROBORA SI EL ARCHIVO QUE SE VA A DESCARGAR SE
+		// ENCUENTRA O NO EN EL DISCO. ESTO ES UTIL PARA EVITAR REDESCARGAR
+		// COSAS QUE REALMENTE YA FUERON DESCARGADAS EN OCASIONES ANTERIORES.
+		function isInDisc (sourceIndex) {
+			var file = path.join("descargas", sources[sourceIndex].courseName + " - Aula Virtual", sources[sourceIndex].sectionName, sources[sourceIndex].subSectionName, sources[sourceIndex].fileName);
+			try {
+				fs.accessSync(file, fs.constants.F_OK);
+				var fileSizeInDisc = +fs.statSync(file).size;
+				if (fileSizeInDisc === sources[sourceIndex].fileSize)
+					return true;
+				//else
+				//	TODO: cambiar el nombre si no tienen el mismo tamaño...
+			} catch (e) {
+				return false;
+			}
+		}
+
+
+		// ESTA FUNCION INICIA, MUESTRA EL PROGRESO Y DA PASO A LA FINALIZACIÓN
+		// DE LA DESCARGA DE UN RECURSO, SEGUN EL INDICE DEL MISMO
+		function descargarRecurso(sourceIndex) {
+
+			
+			// SI EL ARCHIVO YA ESTA DESCARGADO, LO OMITIMOS
+			if (isInDisc(sourceIndex) && !_config["forzar-redescarga-cursoCompleto"]) {
+				term.bold(`    [${sourceIndex + 1}/${sources.length}] ${sources[sourceIndex].fileTitle}: `).brightGreen(`Ya descargado previamente.\n\n`);
+				downloadNextOrEnd(sourceIndex);
+			
+
+			// CASO CONTRARIO, CONFIGURAMOS LAS PROPIEDADES DE LA BARRA DE
+			// PROGRESO PARA LAS DESCARGASINICIAMOS LA DESCARGA DEL RECURSO
+			} else {
+				var progressBar = term.progressBar({
+					eta: true,
+					percent: true,
+					title: `    [${sourceIndex + 1}/${sources.length}] ${sources[sourceIndex].fileTitle}`,
+					barStyle: term.brightGreen
+				});
+
+				// CONFIGURAMOS LAS OPCIONES DE LA DESCARGA Y LA INICIAMOS
+				var requestOptions =  {
+					url: sources[sourceIndex].fileLink,
+					headers: {Cookie: accessCookie[0].name + "=" + accessCookie[0].value}, // PASAMOS LA COOKIE DE SESION DE USUARIO PARA PODER ACCEDER A LA DESCARGA
+					rejectUnauthorized: false, // NO ESTOY SEGURO DE QUE HACE ESTO... PERO SIN ESTO LA DESCARGA ES RECHAZADA. NO TENGO GANAS DE HILAR FINO AHORA
+					method: "GET", // EL METODO "HEAD" SOLO DESCARGA LAS CABECERAS, CON "GET" SE OBTIENE EL CUERPO TAMBIEN.
+				};
+
+				// CONFIGURACIONES ADICIONALES PARA LA DESCARGA DE CARPETAS DEL MOODLE
+				if (sources[sourceIndex].isMoodleFolder_id !== null) {
+					requestOptions.strictSSL = false; // ES NECESARIO DESACTIVAR LAS DESCARGAS A TRAVES DE SSL SOLAMENTE PARA LAS CARPETAS DEL MOODLE, PARA LOS OTROS TIPOS RECURSOS ESTA LINEA PUEDE BORRARSE O USAR "TRUE".
+					requestOptions.qs = {
+						id: sources[sourceIndex].isMoodleFolder_id, // [NUM] ESTE PARAMETRO SOLO ES USADO CUANDO SE SOLICITA LA DESCARGA DE UNA CARPETA DEL MOODLE. SIN EL MISMO, LA DESCARGA NO PUEDE REALIZARSE. PARA LOS OTROS TIPOS DE RECURSOS NO ES NECESARIO USARLO.
+						// "sesskey": "Z2mn5nZrB8" // ESTE PARÁMETRO TAMBIÉN ES ENVIADO CUANDO EL NAVEGADOR SOLICITA LA DESCARGA DE LA CARPETA, PERO NO ES NECESARIO SEGUN LAS PRUEBAS QUE ESTUVE HACIENDO. ADEMAS, OBTENER SU VALOR CORRECTO RESULTA COMPLICADO Y NO TIENE SENTIDO.
+					};
+				}
+
+				// INICIAMOS LA DESCARGA
+				progress(request(requestOptions, function(error, res) {
+					if (error) {
+						if (progressBar) progressBar.stop();
+						// console.log("    Se produjo un error en la descarga de '" + sources[sourceIndex].fileTitle + ": " + error + "'.\n");
+						term.bold.brightRed(`    [${sourceIndex + 1}/${sources.length}] ${sources[sourceIndex].fileTitle}: Error.\n\n`);
+						downloadNextOrEnd(sourceIndex);
+					} 
+				}), {
+					// throttle: 2000,                    // Throttle the progress event to 2000ms, defaults to 1000ms
+					// delay: 1000,                       // Only start to emit after 1000ms delay, defaults to 0ms
+					// lengthHeader: 'x-transfer-length'  // Length header to use, defaults to content-length
+				})
+
+				.on('progress', function (state) {
+					// The state is an object that looks like this:
+					// {
+					//     percent: 0.5,               // Overall percent (between 0 to 1)
+					//     speed: 554732,              // The download speed in bytes/sec
+					//     size: {
+					//         total: 90044871,        // The total payload size in bytes
+					//         transferred: 27610959   // The transferred payload size in bytes
+					//     },
+					//     time: {
+					//         elapsed: 36.235,        // The total elapsed seconds since the start (3 decimals)
+					//         remaining: 81.403       // The remaining seconds to finish (3 decimals)
+					//     }
+					// }
+			
+					//console.log('progress', state);
+					progressBar.update(state.percent);
+				})
+
+				.on('error', function (err) {
+					// MANEJO DE ERRORES
+					// console.log("Ha ocurrido un error con una de las descargas."); // TODO: Ver si esto va o nó....
+					// progressBar.stop(); // TODO: Aparentemente esto causa errores... porque ya es detenida en otra deteccin de error.
+				})
+
+				.on('end', function () {
+					// TERMINA LA DESCARGA DEL ARCHIVO ACTUAL: LLEVAMOS
+					// LA BARRA DE PROGRESO AL 100% Y LA DETENEMOS.
+					progressBar.update(1);
+					progressBar.stop();
+					console.log("\n");
+	
+
+					// INICIAMOS LA DESCARGA DEL SIGUIENTE ARCHIVO EN LA
+					// COLA, O FINALIZAMOS SI YA TODOS FUERON DESCARGADOS
+					downloadNextOrEnd(sourceIndex);
+				})
+				.pipe(fs.createWriteStream(path.join("descargas", sources[sourceIndex].courseName + " - Aula Virtual", sources[sourceIndex].sectionName, sources[sourceIndex].subSectionName, sources[sourceIndex].fileName))); 
+			}
+		}
+		descargarRecurso(0);
+	});
 }
 
 
@@ -358,357 +730,18 @@ async function savePagePreview (puppeteerPage, courseName) {
 
 
 
-
-
-
-
-
-
-
-// ESTA FUNCION ES LA ENCARGADA DE INICIAR EL PROCESO DE SELECCION Y DESCARGA DE
-// UN CURSO. TODO: ¿SEGMENTAR ESTA MEGA FUNCION EN PARTES MAS CHICAS?
+// ESTA FUNCION ES LA ENCARGADA DE INICIAR EL
+// PROCESO DE SELECCION Y DESCARGA DE UN CURSO. 
 async function descargarCurso () {
-	const page = await launchPuppeteer();
+	const [browser, page] = await launchPuppeteer();
 	var cookieBeforeLogin = await connectToMoodle(page);
 	var cookieCorrectLogin = await tryMoodleLogin(page, cookieBeforeLogin);
+	await connectToMoodleCourse(page);
 	var sources = await searchForMoodleSources(page);
 	sources = sanitizeSourcesInfo(sources);
 	await savePagePreview(page, sources[0].courseName);
-
-
-
-	
-
-	// .....-..-.-..-. .-.  - . -- SEGUIR DESMEMBRANDO LO DE ACÁ PARA ABAJO!!!!!!
-
-
-
-
-	// ESTA FUNCIÓN DESCARGA SOLAMENTE LA INFORMACION DE CABECERA DE LOS ENLACES
-	// CORRESPONDIENTES A CADA UNO DE LOS RECURSOS. EL PROPÓSITO ES OBTENER
-	// INFORMACIÓN ADICIONAL COMO LA EXTENSIÓN DEL NOMBRE DEL ARCHIVO Y SU
-	// TAMAÑO. ESTO SERVIRÁ PARA TRABAJAR LUEGO CON EL SISTEMA DE ARCHIVOS. POR
-	// OTRO LADO, EN EL MOODLE A VECES SUCEDE QUE LOS RECURSOS SON AGREGADOS NO
-	// COMO UN ENLACE DIRECTO, SI NÓ QUE EL ENLACE DE LA PAGINA PRINCIPAL
-	// CONDUCE A OTRA PAGINA WEB DONDE ESTA EMBEBIDO, O "INCRUSTADO", EL
-	// VERDADERO ARCHIVO. EN ESTE CASO LO QUE OBTENEMOS COMO RESPUESTA DE LA
-	// PETICIÓN NO ES UN ARCHIVO, SI NÓ UN DOCUMENTO HTML. NOSOTROS QUEREMOS EL
-	// ARCHIVO, POR LO QUE ES NECESARIO HACER UN PEQUEÑO PROCESAMIENTO DEL
-	// CUERPO DE LA RESPUESTA (EL CODIGO HTML) A FIN DE ENCONTRAR EL LINK DEL
-	// VERDADERO ARCHIVO (CASO CONTRARIO ESTARIAMOS DESCARGANDO SOLO EL HTML)
-	function analizarRecursos() {
-
-
-		// ESTA FUNCIÓN PROCESA CODIGO HTML PROVENIENTE DE UNA PAGINA DE MOODLE
-		// DONDE SE ENCUENTRE EMBEBIDO UN RECURSO, CON EL OBJETIVO DE EXTRAER EL
-		// LINK DEL MISMO
-		function buscarRecursosEnHTML (htmlCode) {
-			var $ = cheerio.load(htmlCode);
-			var sourceLink = "";
-
-			// VERIFICAMOS SI EXISTEN URLs EN LOS LUGARES
-			// QUE ESPERAMOS QUE HAYAN (SON PLANTILLAS)
-			if ($(".resourcecontent").length > 0) {
-				// PDFs
-				sourceLink = $(".resourcecontent").html().match(/https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)/gi)[0];
-			
-			} else if ($(".resourceworkaround").length > 0) {
-				// OTROS RECURSOS
-				sourceLink = $(".resourceworkaround").html().match(/https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)/gi)[0];
-			
-			} else if ($(".singlebutton > form:nth-child(1)").length > 0) {
-				// CARPETAS (NOTA: Las carpetas vacias arrojarán un error, que ya está manejado en el código)
-				sourceLink = $(".singlebutton > form:nth-child(1)").attr("action");
-			
-			} else if($(".urlworkaround").length > 0) {
-				// Links
-				sourceLink = $(".urlworkaround").html().match(/https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)/gi)[0];
-			}
-			// ESTO FUNCIONA SOLAMENTE CUANDO headless = true;
-			// SI NO HAY COINCIDENCIA CON NINGUNA
-			// DE LAS PLANTILLAS ANTERIORES
-			if (sourceLink === null || sourceLink === "") {
-				term.brightYellow("\t    ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄\n");
-				term.brightYellow("\t    ⚠️ Atención: No se pudo obtener la dirección del recurso. Se\n");
-				term.brightYellow("\t    descargará una imagen con un símbolo  de 'error' en su lugar\n");
-				term.brightYellow("\t    ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀\n");
-				sourceLink = "https://upload.wikimedia.org/wikipedia/commons/5/5f/Icon_Simple_Error.png"; // ESTE LINK CONDUCE A UNA IMAGEN DE ERROR, CON LICENCIA CC0 (DOMINIO PUBLICO). EL SCRIPT LA DESCARGARÁ EN LUGAR DEL RECURSO NO HALLADO.
-			}
-
-			// DEVOLVEMOS LA DIRECCIÓN DEL RECURSO
-			return sourceLink;
-		}
-
-
-		// DEVOLVEMOS UNA PROMESA CUANDO LLAMEN A LA FUNCIÓN. SERÁ RESUELTA UNA
-		// VEZ QUE SEAN ANALIZADOS TODOS LOS RECURSOS. LA EJECUCIÓN DEL PROGRAMA
-		// QUE ESTÁ LUEGO DE LA LLAMADA A LA FUNCIÓN SE DETENDRÁ HASTA QUE LA
-		// PROMESA SEA RESUELTA. ESTO ES LO PROPIO DEL MODO DE TRABAJO
-		// ASINCRÓNICO EN JS. UTILIZAMOS AWAIT EN LA LLAMADA PARA ESPERAR EL
-		// CUMPLIMIENTO DE LA PROMESA.
-		return new Promise(function(resolve, reject) {
-
-
-			// ESTA FUNCIÓN INICIA LA DESCARGA DE LA INFORMACIÓN DE CADA RECURSO
-			// Y PROCESA LA RESPUESTA. SE DECARGAN SOLAMENTE SUS CABECERAS,
-			// SALVO CASO QUE SE TRATE DE UN ARCHIVO HTML: ENTONCES SE
-			// DESCARGARÁ EL CUERPO COMPLETO, A FIN DE PROCESARLO PARA ENCONTRAR
-			// EL LINK DEL RECURSO QUE ESTÁ EMBEBIDO DENTRO DEL MISMO Y QUE ES
-			// EL QUE VERDADERAMENTE QUEREMOS DESCARGAR LUEGO.
-			(function analizarRecurso(sourceIndex, descargarCuerpo = false) {
-				
-				
-				// CONFIGURAMOS LAS OPCIONES DE LA DESCARGA Y LA INICIAMOS
-				var requestOptions =  {
-					url: sources[sourceIndex].fileLink,
-					headers: {Cookie: cookieCorrectLogin[0].name + "=" + cookieCorrectLogin[0].value}, // PASAMOS LA COOKIE DE SESION DE USUARIO PARA PODER ACCEDER A LA DESCARGA
-					rejectUnauthorized: false, // NO ESTOY SEGURO DE QUE HACE ESTO... PERO SIN ESTO LA DESCARGA ES RECHAZADA. NO TENGO GANAS DE HILAR FINO AHORA
-					method: (descargarCuerpo) ? "GET" : "HEAD" // EL METODO "HEAD" SOLO DESCARGA LAS CABECERAS, CON "GET" SE OBTIENE EL CUERPO TAMBIEN.
-				};
-
-				// CONFIGURACIONES ADICIONALES PARA EL ANALISIS DE CARPETAS DEL MOODLE
-				if (sources[sourceIndex].isMoodleFolder_id !== null) {
-					requestOptions.strictSSL = false; // ES NECESARIO DESACTIVAR LAS DESCARGAS A TRAVES DE SSL SOLAMENTE PARA LAS CARPETAS DEL MOODLE, PARA LOS OTROS TIPOS RECURSOS ESTA LINEA PUEDE BORRARSE O USAR "TRUE".
-					requestOptions.qs = {
-						id: sources[sourceIndex].isMoodleFolder_id, // [NUM] ESTE PARAMETRO SOLO ES USADO CUANDO SE SOLICITA LA DESCARGA DE UNA CARPETA DEL MOODLE. SIN EL MISMO, LA DESCARGA NO PUEDE REALIZARSE. PARA LOS OTROS TIPOS DE RECURSOS NO ES NECESARIO USARLO.
-						// "sesskey": "Z2mn5nZrB8" // ESTE PARÁMETRO TAMBIÉN ES ENVIADO CUANDO EL NAVEGADOR SOLICITA LA DESCARGA DE LA CARPETA, PERO NO ES NECESARIO SEGUN LAS PRUEBAS QUE ESTUVE HACIENDO. ADEMAS, OBTENER SU VALOR CORRECTO RESULTA COMPLICADO Y NO TIENE SENTIDO.
-					};
-				}
-
-				request(requestOptions, function(error, res) {
-
-					
-					// SI SE PRODUCE UN ERROR, VOLVEMOS
-					// A INTENTAR DESCARGAR EL RECURSO
-					if (error) {
-						console.error(`  ✖ [${sourceIndex + 1}/${sources.length}] ${sources[sourceIndex].fileTitle}  →  Error. Reitentando...`);
-						analizarRecurso(sourceIndex);
-					
-						
-					// CASO CONTRARIO, PROCESAMOS Y OBTENEMOS 
-					// INFORMACIÓN DE INTERES DEL MISMO.
-					} else {
-						
-
-						// OBTENEMOS EL NOMBRE DE ARCHIVO ORIGINAL Y SU
-						// EXTENSIÓN. ESTA INFORMACIÓN VIENE EN LA CABECERA DE
-						// LA RESPUESTA. NO TODAS LAS RESPUESTAS LA INCLUYEN,
-						// PORQUE DEPENDE DEL CONTENIDO DE LAS MISMAS, CLARO
-						// ESTÁ.
-						if(res.headers['content-disposition']) {
-							var fileNameData = ((res.headers['content-disposition'].match(/filename=\"([^"]*)\"/gi))[0]).split(".");
-							if (fileNameData.length > 1) {
-								fileExtension = (fileNameData.slice(-1)).toString().slice(0, -1);
-								sources[sourceIndex].fileName = sources[sourceIndex].fileName + "." + fileExtension;
-								sources[sourceIndex].originalFileName = fileNameData[0].split('"').slice(-1).toString() + "." + fileExtension;
-							} 
-						}
-
-
-						// TAMBIEN OBTENEMOS EL TAMAÑO DEL ARCHIVO, LO CUAL
-						// NOS SERVIRA LUEGO PARA CORROBORAR SI EL MISMO YA
-						// FUE DESCARGADO Y SE ENCUENTRA EN DISCO O AUN NÓ.
-						// CON ESTO SE PUEDE EVITAR RE-DESCARGAR COSAS.
-						if(res.headers['content-length']) {
-							sources[sourceIndex].fileSize = +res.headers['content-length'];
-						}
-
-
-						// DETECTAMOS EL TIPO DEL CONTENIDO DE LA RESPUESTA.
-						// SI ES HTML, LO PROCESAREMOS LUEGO A FIN DE OBTENER 
-						// EL RECURSO QUE ESTÁ EMBEBIDO (INCRUSTADO) EN ÉL.
-						if (res.headers['content-type']) {
-							sources[sourceIndex].contentType = res.headers['content-type'];
-							if (descargarCuerpo === false) console.log(`\n    [${sourceIndex + 1}/${sources.length}] ${sources[sourceIndex].sectionName}:\n\t    Nombre: "${sources[sourceIndex].fileTitle}"\n\t    Tipo: ${res.headers['content-type']}`);
-							
-
-							// SI SE TRATA DE UN HTML CON UN RECURSO EMBEBIDO
-							// DENTRO, LO ANALIZAMOS A FIN DE ENCONTRAR LA
-							// VERDADERA DIRECCION DEL ARCHIVO
-							if (res.headers['content-type'].indexOf("html") != -1) {
-								if (res.body == "") {
-									console.log(`\t    El link conduce a un archivo HTML: Obteniendo recurso real...`); // ⤷
-									analizarRecurso(sourceIndex, true); // ANALIZAMOS EL CUERPO COMPLETO
-								} else {
-									var link = buscarRecursosEnHTML(res.body);
-									sources[sourceIndex].fileLink = link;
-									console.log(`\t    Recurso real: "...${(link).slice(-50)}"`); // ⟳↻
-									console.log(`\t    Obteniendo información del archivo...`); // ⟳↻
-									analizarRecurso(sourceIndex);
-								}
-								
-							// CASO CONTRARIO, PASAMOS AL SIGUIENTE RECURSO
-							} else {
-								if ((sourceIndex + 1) < sources.length) {
-									analizarRecurso(sourceIndex + 1);
-								} else {
-									term.brightGreen("\n  ✓ Archivos analizados.\n");
-									console.log("    Peso total de los recursos: " + ((sources.reduce((i,j)=>({fileSize: i.fileSize + j.fileSize}))).fileSize/1e6).toFixed(2) + " MB.\n\n");
-									resolve();
-								}
-							}
-						}
-					}
-				});
-			})(0);
-		});
-	}
-	console.info("  ▪ Analizando tipos de archivos...");
-	await analizarRecursos();
-	
-	
-
-	// ESTA FUNCION DESCARGA TODOS LOS RECURSOS QUE SE ENCUENTRAN LISTADOS EN LA
-	// VARIABLE "sources". CONTIENE PARTES DEL TIPO ASYNCRÓNICO, ASÍ QUE AL
-	// LLAMARLA, ES BUENO UTILIZAR "await" PARA EVITAR QUE EL RESTO DEL CODIGO
-	// SE SIGA EJECUTANDO ANTES DE QUE TODOS LOS RECURSOS SE HAYAN DESCARGADO
-	function descargarRecursos() {
-
-
-		// DEVOLVEMOS UNA PROMESA CUANDO LLAMEN A LA FUNCIÓN. SERÁ RESUELTA UNA
-		// VEZ QUE SEAN DESCARGADOS TODOS LOS RECURSOS. LA EJECUCIÓN DEL
-		// PROGRAMA QUE ESTÁ LUEGO DE LA LLAMADA A LA FUNCIÓN SE DETENDRÁ HASTA
-		// QUE LA PROMESA SEA RESUELTA. ESTO ES LO PROPIO DEL MODO DE TRABAJO
-		// ASINCRÓNICO EN JS. UTILIZAMOS AWAIT EN LA LLAMADA PARA ESPERAR EL
-		// CUMPLIMIENTO DE LA PROMESA.
-		return new Promise(function(resolve, reject) {
-
-
-			// ESTA FUNCION ORDENA LA DESCARGA DEL SIGUIENTE RECURSO DE LA
-			// LISTA, O DA POR FINALIZADO TODA ESTA TAREA SI LA TOTALIDAD DE LOS
-			// RECURSOS SE DESCARGARON.
-			function downloadNextOrEnd (sourceIndexActual) {
-				if ((sourceIndexActual + 1) < sources.length) {
-					descargarRecurso(sourceIndexActual + 1);
-				} else {
-					term.brightGreen("\n  ✓ Descargados todos los archivos. Podés encontrarlos en la carpeta:\n\n");
-					term.brightBlue.bold('    "./descargas/' + sources[0].courseName + ' - Aula Virtual"\n\n');
-					resolve(); // AL FINALIZAR TODAS LAS DESCARGAS, SE RESUELVE LA PROMESA
-				}
-			}
-
-				
-			// ESTA FUNCION CORROBORA SI EL ARCHIVO QUE SE VA A DESCARGAR SE
-			// ENCUENTRA O NO EN EL DISCO. ESTO ES UTIL PARA EVITAR REDESCARGAR
-			// COSAS QUE REALMENTE YA FUERON DESCARGADAS EN OCASIONES ANTERIORES.
-			function isInDisc (sourceIndex) {
-				var file = path.join("descargas", sources[sourceIndex].courseName + " - Aula Virtual", sources[sourceIndex].sectionName, sources[sourceIndex].subSectionName, sources[sourceIndex].fileName);
-				try {
-					fs.accessSync(file, fs.constants.F_OK);
-					var fileSizeInDisc = +fs.statSync(file).size;
-					if (fileSizeInDisc === sources[sourceIndex].fileSize)
-						return true;
-					//else
-					//	TODO: cambiar el nombre si no tienen el mismo tamaño...
-				} catch (e) {
-					return false;
-				}
-			}
-
-
-			// ESTA FUNCION INICIA, MUESTRA EL PROGRESO Y DA PASO A LA FINALIZACIÓN
-			// DE LA DESCARGA DE UN RECURSO, SEGUN EL INDICE DEL MISMO
-			function descargarRecurso(sourceIndex) {
-
-				
-				// SI EL ARCHIVO YA ESTA DESCARGADO, LO OMITIMOS
-				if (isInDisc(sourceIndex) && !_config["forzar-redescarga-cursoCompleto"]) {
-					term.bold(`    [${sourceIndex + 1}/${sources.length}] ${sources[sourceIndex].fileTitle}: `).brightGreen(`Ya descargado previamente.\n\n`);
-					downloadNextOrEnd(sourceIndex);
-				
-
-				// CASO CONTRARIO, CONFIGURAMOS LAS PROPIEDADES DE LA BARRA DE
-				// PROGRESO PARA LAS DESCARGASINICIAMOS LA DESCARGA DEL RECURSO
-				} else {
-					var progressBar = term.progressBar({
-						eta: true,
-						percent: true,
-						title: `    [${sourceIndex + 1}/${sources.length}] ${sources[sourceIndex].fileTitle}`,
-						barStyle: term.brightGreen
-					});
-
-					// CONFIGURAMOS LAS OPCIONES DE LA DESCARGA Y LA INICIAMOS
-					var requestOptions =  {
-						url: sources[sourceIndex].fileLink,
-						headers: {Cookie: cookieCorrectLogin[0].name + "=" + cookieCorrectLogin[0].value}, // PASAMOS LA COOKIE DE SESION DE USUARIO PARA PODER ACCEDER A LA DESCARGA
-						rejectUnauthorized: false, // NO ESTOY SEGURO DE QUE HACE ESTO... PERO SIN ESTO LA DESCARGA ES RECHAZADA. NO TENGO GANAS DE HILAR FINO AHORA
-						method: "GET", // EL METODO "HEAD" SOLO DESCARGA LAS CABECERAS, CON "GET" SE OBTIENE EL CUERPO TAMBIEN.
-					};
-
-					// CONFIGURACIONES ADICIONALES PARA LA DESCARGA DE CARPETAS DEL MOODLE
-					if (sources[sourceIndex].isMoodleFolder_id !== null) {
-						requestOptions.strictSSL = false; // ES NECESARIO DESACTIVAR LAS DESCARGAS A TRAVES DE SSL SOLAMENTE PARA LAS CARPETAS DEL MOODLE, PARA LOS OTROS TIPOS RECURSOS ESTA LINEA PUEDE BORRARSE O USAR "TRUE".
-						requestOptions.qs = {
-							id: sources[sourceIndex].isMoodleFolder_id, // [NUM] ESTE PARAMETRO SOLO ES USADO CUANDO SE SOLICITA LA DESCARGA DE UNA CARPETA DEL MOODLE. SIN EL MISMO, LA DESCARGA NO PUEDE REALIZARSE. PARA LOS OTROS TIPOS DE RECURSOS NO ES NECESARIO USARLO.
-							// "sesskey": "Z2mn5nZrB8" // ESTE PARÁMETRO TAMBIÉN ES ENVIADO CUANDO EL NAVEGADOR SOLICITA LA DESCARGA DE LA CARPETA, PERO NO ES NECESARIO SEGUN LAS PRUEBAS QUE ESTUVE HACIENDO. ADEMAS, OBTENER SU VALOR CORRECTO RESULTA COMPLICADO Y NO TIENE SENTIDO.
-						};
-					}
-
-					// INICIAMOS LA DESCARGA
-					progress(request(requestOptions, function(error, res) {
-						if (error) {
-							if (progressBar) progressBar.stop();
-							// console.log("    Se produjo un error en la descarga de '" + sources[sourceIndex].fileTitle + ": " + error + "'.\n");
-							term.bold.brightRed(`    [${sourceIndex + 1}/${sources.length}] ${sources[sourceIndex].fileTitle}: Error.\n\n`);
-							downloadNextOrEnd(sourceIndex);
-						} 
-					}), {
-						// throttle: 2000,                    // Throttle the progress event to 2000ms, defaults to 1000ms
-						// delay: 1000,                       // Only start to emit after 1000ms delay, defaults to 0ms
-						// lengthHeader: 'x-transfer-length'  // Length header to use, defaults to content-length
-					})
-
-					.on('progress', function (state) {
-						// The state is an object that looks like this:
-						// {
-						//     percent: 0.5,               // Overall percent (between 0 to 1)
-						//     speed: 554732,              // The download speed in bytes/sec
-						//     size: {
-						//         total: 90044871,        // The total payload size in bytes
-						//         transferred: 27610959   // The transferred payload size in bytes
-						//     },
-						//     time: {
-						//         elapsed: 36.235,        // The total elapsed seconds since the start (3 decimals)
-						//         remaining: 81.403       // The remaining seconds to finish (3 decimals)
-						//     }
-						// }
-				
-						//console.log('progress', state);
-						progressBar.update(state.percent);
-					})
-
-					.on('error', function (err) {
-						// MANEJO DE ERRORES
-						// console.log("Ha ocurrido un error con una de las descargas."); // TODO: Ver si esto va o nó....
-						// progressBar.stop(); // TODO: Aparentemente esto causa errores... porque ya es detenida en otra deteccin de error.
-					})
-
-					.on('end', function () {
-						// TERMINA LA DESCARGA DEL ARCHIVO ACTUAL: LLEVAMOS
-						// LA BARRA DE PROGRESO AL 100% Y LA DETENEMOS.
-						progressBar.update(1);
-						progressBar.stop();
-						console.log("\n");
-		
-
-						// INICIAMOS LA DESCARGA DEL SIGUIENTE ARCHIVO EN LA
-						// COLA, O FINALIZAMOS SI YA TODOS FUERON DESCARGADOS
-						downloadNextOrEnd(sourceIndex);
-					})
-					.pipe(fs.createWriteStream(path.join("descargas", sources[sourceIndex].courseName + " - Aula Virtual", sources[sourceIndex].sectionName, sources[sourceIndex].subSectionName, sources[sourceIndex].fileName))); 
-				}
-			}
-			descargarRecurso(0);
-		});
-	}
-
-
-	// INICIAMOS LA DESCARGA
-	console.info("  ▪ Descargando archivos:\n");
-	await descargarRecursos();
-
-
-	// FINALIZACIÓN
+	sources = await analizarRecursos(sources, cookieCorrectLogin);
+	sources = await descargarRecursos(sources, cookieCorrectLogin);
 	console.info("\n▪ OPERACIÓN FINALIZADA\n");
 	await browser.close();
 }
