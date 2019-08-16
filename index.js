@@ -115,6 +115,22 @@ async function printAbout () {
 // -------------------------------------------------------------------------------------------------
 //						 	FUNCIONES RELACIONADAS A DESCARGAR UN CURSO
 // -------------------------------------------------------------------------------------------------
+// ESTA FUNCION ES LA ENCARGADA DE INICIAR EL
+// PROCESO DE SELECCION Y DESCARGA DE UN CURSO. 
+async function descargarCurso () {
+	const [browser, page] = await launchPuppeteer();
+	var cookieBeforeLogin = await connectToMoodle(page);
+	var cookieCorrectLogin = await tryMoodleLogin(page, cookieBeforeLogin);
+	await connectToMoodleCourse(page);
+	var sources = await searchForMoodleSources(page);
+	sources = sanitizeSourcesInfo(sources);
+	await savePagePreview(page, sources[0].courseName);
+	sources = await analizarRecursos(sources, cookieCorrectLogin);
+	sources = await descargarRecursos(sources, cookieCorrectLogin);
+	console.info("\n▪ OPERACIÓN FINALIZADA\n");
+	await browser.close();
+}
+
 
 
 // INICIA EL NAVEGADOR MARIONETA Y ABRE
@@ -231,9 +247,9 @@ async function connectToMoodleCourse (puppeteerPage) {
 
 
 // UNA VEZ EN LA PAGINA DEL CURSO DEL CUAL SE QUIERE DESCARGAR LOS ARCHIVOS,
-// REALIZAMOS SCRAP DE LA INFORMACION DE LOS MISMOS (LINK DE DESCARGA, NOMBRE, SECCION,
-// ETC) Y LOS CARGAMOS EN UN ARRAY (sources) QUE USAREMOS LUEGO PARA REALIZAR LA DESCARGA
-// TODO: Partir esta funcion en pedazos mas pequeños?
+// REALIZAMOS SCRAP DE LA INFORMACION DE LOS MISMOS (LINK DE DESCARGA, NOMBRE,
+// SECCION, ETC) Y LOS CARGAMOS EN UN ARRAY (sources) QUE USAREMOS LUEGO PARA
+// REALIZAR LA DESCARGA.
 async function searchForMoodleSources (puppeteerPage) {
 	// console.info("  ▪ Obteniendo lista de recursos disponibles para la descarga...");
 	// await puppeteerPage.goto(_personalData["curso-url"], {waitUntil: 'networkidle2'});
@@ -469,7 +485,7 @@ function analizarRecursos(sources, accessCookie) {
 			var requestOptions =  {
 				url: sources[sourceIndex].fileLink,
 				headers: {Cookie: accessCookie[0].name + "=" + accessCookie[0].value}, // PASAMOS LA COOKIE DE SESION DE USUARIO PARA PODER ACCEDER A LA DESCARGA
-				rejectUnauthorized: false, // NO ESTOY SEGURO DE QUE HACE ESTO... PERO SIN ESTO LA DESCARGA ES RECHAZADA. NO TENGO GANAS DE HILAR FINO AHORA
+				rejectUnauthorized: false, // NO ESTOY SEGURO DE QUE HACE ESTO... PERO SIN ESTO LA DESCARGA ES RECHAZADA. NO TENGO GANAS DE BUSCAR LO QUE HACE AHORA
 				method: (descargarCuerpo) ? "GET" : "HEAD" // EL METODO "HEAD" SOLO DESCARGA LAS CABECERAS, CON "GET" SE OBTIENE EL CUERPO TAMBIEN.
 			};
 
@@ -640,7 +656,7 @@ function descargarRecursos(sources, accessCookie) {
 				var requestOptions =  {
 					url: sources[sourceIndex].fileLink,
 					headers: {Cookie: accessCookie[0].name + "=" + accessCookie[0].value}, // PASAMOS LA COOKIE DE SESION DE USUARIO PARA PODER ACCEDER A LA DESCARGA
-					rejectUnauthorized: false, // NO ESTOY SEGURO DE QUE HACE ESTO... PERO SIN ESTO LA DESCARGA ES RECHAZADA. NO TENGO GANAS DE HILAR FINO AHORA
+					rejectUnauthorized: false, // NO ESTOY SEGURO DE QUE HACE ESTO... PERO SIN ESTO LA DESCARGA ES RECHAZADA. NO TENGO GANAS DE BUSCAR LO QUE HACE AHORA
 					method: "GET", // EL METODO "HEAD" SOLO DESCARGA LAS CABECERAS, CON "GET" SE OBTIENE EL CUERPO TAMBIEN.
 				};
 
@@ -715,41 +731,10 @@ function descargarRecursos(sources, accessCookie) {
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// ESTA FUNCION ES LA ENCARGADA DE INICIAR EL
-// PROCESO DE SELECCION Y DESCARGA DE UN CURSO. 
-async function descargarCurso () {
-	const [browser, page] = await launchPuppeteer();
-	var cookieBeforeLogin = await connectToMoodle(page);
-	var cookieCorrectLogin = await tryMoodleLogin(page, cookieBeforeLogin);
-	await connectToMoodleCourse(page);
-	var sources = await searchForMoodleSources(page);
-	sources = sanitizeSourcesInfo(sources);
-	await savePagePreview(page, sources[0].courseName);
-	sources = await analizarRecursos(sources, cookieCorrectLogin);
-	sources = await descargarRecursos(sources, cookieCorrectLogin);
-	console.info("\n▪ OPERACIÓN FINALIZADA\n");
-	await browser.close();
-}
-
-
-
-  
-// FUNCION PRINCIPAL
+// -------------------------------------------------------------------------------------------------
+//						 					THE END
+// -------------------------------------------------------------------------------------------------
+// FUNCION DE INICIO
 (async () => {
 	await launchMenu();
 })();
