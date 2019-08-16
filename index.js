@@ -498,6 +498,7 @@ function analizarRecursos(sources, accessCookie) {
 				};
 			}
 
+			// ENVIAMOS LA PETICION
 			request(requestOptions, function(error, res) {
 
 				
