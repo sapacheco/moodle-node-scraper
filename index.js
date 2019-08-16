@@ -226,23 +226,37 @@ async function tryMoodleLogin (puppeteerPage, cookieBeforeLogin) {
 // SOLICITA AL USUARIO LA INTRODUCCIÓN DE LA URL DE UN 
 // CURSO DE MOODLE Y NAVEGA AL MISMO A TRAVÉS DE PUPPETEER
 async function connectToMoodleCourse (puppeteerPage) {
-	try {
-		// console.info("  ▪ Intentando conectarse con el aula virtual...");
+	// console.info("  ▪ Intentando conectarse con el aula virtual...");
+
+	
+	// INTRODUCCION DE LA URL DEL CURSO
+	var inputCourseUrl = async function () {
 		term.brightBlue.bold("  » Introduzca la url del curso de Moodle que desea descargar:");
 		term.gray.bold("\n    https://aulavirtual.fio.unam.edu.ar/course/view.php?id=##\n    ");
 		var courseUrl = await term.inputField().promise;
 		term.grabInput(false);
-		await puppeteerPage.goto(courseUrl, {waitUntil: 'networkidle2'});
 
-		term.brightGreen("\n  ✓ Conexión establecida.\n\n");
-		return courseUrl;
-	} catch (error) {
-		// console.log(error);
-		term.brightYellow("\n\n  ⚠️ No resultó posible encontrar el curso solicitado.\n");
-		term.brightYellow("    Quizás la url es incorrecta o existen problemas\n");
-		term.brightYellow("    con la conexión a internet. Reitentar...\n\n");
-		connectToMoodleCourse(puppeteerPage);
-	}
+
+		// DETECCION DE ERRORES
+		var partesUrl = courseUrl.split("=");
+		if (/^\d+\s*$/gim.test(partesUrl[1]) === false ||
+			partesUrl[0] !== "https://aulavirtual.fio.unam.edu.ar/course/view.php?id") {
+			// console.log(error);
+			term.brightYellow("\n\n  ⚠️ No resultó posible encontrar el curso solicitado.\n");
+			term.brightYellow("    Quizás la url es incorrecta o existen problemas\n");
+			term.brightYellow("    con la conexión a internet. Reitentar...\n\n");
+			return await inputCourseUrl();
+		} else {
+			return courseUrl;
+		}
+	};
+	var courseUrl = await inputCourseUrl();
+
+
+	// CONEXION
+	await puppeteerPage.goto(courseUrl, {waitUntil: 'networkidle2'});
+	term.brightGreen("\n  ✓ Conexión establecida.\n\n");
+	return courseUrl;
 }
 
 
@@ -251,7 +265,7 @@ async function connectToMoodleCourse (puppeteerPage) {
 // SECCION, ETC) Y LOS CARGAMOS EN UN ARRAY (sources) QUE USAREMOS LUEGO PARA
 // REALIZAR LA DESCARGA.
 async function searchForMoodleSources (puppeteerPage) {
-	// console.info("  ▪ Obteniendo lista de recursos disponibles para la descarga...");
+	console.info("  ▪ Obteniendo lista de recursos disponibles para la descarga...");
 	// await puppeteerPage.goto(_personalData["curso-url"], {waitUntil: 'networkidle2'});
 
 
