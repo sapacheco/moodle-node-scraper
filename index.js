@@ -1,12 +1,12 @@
 // IMPORTACIÓN DE MÓDULOS
-const puppeteer = require('puppeteer');
-const fs = require('fs-extra');
+const puppeteer = require("puppeteer");
+const fs = require("fs-extra");
 const sanitize = require("sanitize-filename");
-const path = require('path');
-const request = (require('request')).defaults({jar: true}); // ESTA OPCIÓN SE HABILITA PARA PERMITIR DESCARGAS CON COOKIES DE SESION
-const progress = require('request-progress');
-const term = require('terminal-kit').terminal;
-const cheerio = require('cheerio');
+const path = require("path");
+const request = (require("request")).defaults({jar: true}); // ESTA OPCIÓN SE HABILITA PARA PERMITIR DESCARGAS CON COOKIES DE SESION
+const progress = require("request-progress");
+const term = require("terminal-kit").terminal;
+const cheerio = require("cheerio");
 
 
 // PARÁMETROS
@@ -104,7 +104,7 @@ async function printAbout () {
 	term.clear();
 	term.brightBlue.bold("\nInformación acerca de este programa.\n\n");	
 	term.bold("    Desarrollador:").strike(" Sergio Pacheco (sergioarielpacheco@gmail.com)\n\n");
-	term.bold("    Descripción del programa:").strike(" --completar--.\n\n");
+	term.bold("    Descripción:").strike(" Script para descarga de cursos de Moodle.\n\n");
 	term.bold("    Renuncia de responsabilidad:").strike("\n" + disclaimer + ".\n\n");
 	term.bold("    Licencia:").strike(" --completar--.\n\n");
 	term.bold("    Versión:").strike(" --completar--.\n\n");
@@ -217,7 +217,7 @@ async function tryMoodleLogin (puppeteerPage, cookieBeforeLogin) {
 	} else {
 		term.brightYellow("  ⚠️ Se produjo un error en la autenticación: Quizás\n");
 		term.brightYellow("    el nombre de usuario o la contraseña ingresados\n");
-		term.brightYellow("    sean incorrectos. Reintentando...\n\n");
+		term.brightYellow("    son incorrectos. Reintentar...\n\n");
 		await tryMoodleLogin(puppeteerPage, cookieBeforeLogin);
 	}
 }
@@ -233,7 +233,7 @@ async function connectToMoodleCourse (puppeteerPage) {
 	var inputCourseUrl = async function () {
 		term.brightBlue.bold("  » Introduzca la url del curso de Moodle que desea descargar:");
 		term.gray.bold("\n    https://aulavirtual.fio.unam.edu.ar/course/view.php?id=##\n    ");
-		var courseUrl = await term.inputField().promise;
+		var courseUrl = await term.inputField({default: "https://aulavirtual.fio.unam.edu.ar/course/view.php?id="}).promise;
 		term.grabInput(false);
 
 
@@ -244,7 +244,7 @@ async function connectToMoodleCourse (puppeteerPage) {
 			// console.log(error);
 			term.brightYellow("\n\n  ⚠️ No resultó posible encontrar el curso solicitado.\n");
 			term.brightYellow("    Quizás la url es incorrecta o existen problemas\n");
-			term.brightYellow("    con la conexión a internet. Reitentar...\n\n");
+			term.brightYellow("    con la conexión a internet. Reintentar...\n\n");
 			return await inputCourseUrl();
 		} else {
 			return courseUrl;
@@ -451,7 +451,7 @@ function analizarRecursos(sources, accessCookie) {
 		
 		} else if ($(".resourceworkaround").length > 0) {
 			// OTROS RECURSOS
-			sourceLink = $(".resourceworkaround").html().match(/https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)/gi)[0];
+			sourceLink = $(".resourceworkaround").html().match(/https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)/gi)[0]; // Regex para detectar urls
 		
 		} else if ($(".singlebutton > form:nth-child(1)").length > 0) {
 			// CARPETAS (NOTA: Las carpetas vacias arrojarán un error, que ya está manejado en el código)
@@ -459,7 +459,7 @@ function analizarRecursos(sources, accessCookie) {
 		
 		} else if($(".urlworkaround").length > 0) {
 			// Links
-			sourceLink = $(".urlworkaround").html().match(/https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)/gi)[0];
+			sourceLink = $(".urlworkaround").html().match(/https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)/gi)[0]; // Regex para detectar urls
 		}
 		// ESTO FUNCIONA SOLAMENTE CUANDO headless = true;
 		// SI NO HAY COINCIDENCIA CON NINGUNA
@@ -519,7 +519,7 @@ function analizarRecursos(sources, accessCookie) {
 				// SI SE PRODUCE UN ERROR, VOLVEMOS
 				// A INTENTAR DESCARGAR EL RECURSO
 				if (error) {
-					console.error(`  ✖ [${sourceIndex + 1}/${sources.length}] ${sources[sourceIndex].fileTitle}  →  Error. Reitentando...`);
+					console.error(`  ✖ [${sourceIndex + 1}/${sources.length}] ${sources[sourceIndex].fileTitle}  →  Error. Reintentando...`);
 					analizarRecurso(sourceIndex);
 				
 					
@@ -591,10 +591,6 @@ function analizarRecursos(sources, accessCookie) {
 		})(0);
 	});
 }
-
-
-
-
 
 
 // ESTA FUNCION DESCARGA TODOS LOS RECURSOS QUE SE ENCUENTRAN LISTADOS EN LA
@@ -753,5 +749,10 @@ function descargarRecursos(sources, accessCookie) {
 (async () => {
 	await launchMenu();
 })();
+
+// Algunas regex útiles: 
+// 	image.*(\/\d+(?=\/))
+// 	.+(?=\/\d.+\/)
+// 	\w+(?=/\d+/)   ESTE ANDA BIEN...
 
 // Gracias Señor Jesús.-
