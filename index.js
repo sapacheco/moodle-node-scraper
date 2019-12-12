@@ -9,21 +9,12 @@ const term = require("terminal-kit").terminal;
 const cheerio = require("cheerio");
 
 
-// PARÁMETROS
+// VARIABLES
 const _defaults = JSON.parse(fs.readFileSync("defaults.json"));
 const _config = Object.assign(_defaults, JSON.parse(fs.readFileSync("configuracion.json")));
 const _personalData = JSON.parse(fs.readFileSync("datos-personales.json"));
 // TODO: Preveer errores al procesar estos archivos
 // TODO: AUN NO PROGRAMADO 🤖: const _enumerarCarpetasDescargadas = true; // [bool, def: true]. Agregar un número a cada nombre de carpeta según su disposición en el aula virtual.
-
-
-
-// -------------------------------------------------------------------------------------------------
-//						 					UTILIDADES
-// -------------------------------------------------------------------------------------------------
-
-
-
 
 
 
@@ -67,6 +58,7 @@ async function launchMenu (clearTerminal = true) {
 	}
 }
 
+
 async function printAbout () {
 	var disclaimer = `
 		ESTE SOFTWARE SE PROPORCIONA "TAL CUAL ESTÁ", SIN GARANTÍAS EXPRESAS O
@@ -106,7 +98,6 @@ async function descargarCurso () {
 	console.info("\n▪ OPERACIÓN FINALIZADA\n");
 	await browser.close();
 }
-
 
 
 // INICIA EL NAVEGADOR MARIONETA Y ABRE
@@ -243,9 +234,6 @@ async function connectToMoodleCourse (puppeteerPage) {
 async function searchForMoodleSources (puppeteerPage) {
 	console.info("  ▪ Obteniendo lista de recursos disponibles para la descarga...");
 	// await puppeteerPage.goto(_personalData["curso-url"], {waitUntil: 'networkidle2'});
-
-
-
 
 	
 	await puppeteerPage.addScriptTag({path: 'jquery-3.2.1.min.js'}); // CARGA LOCAL, AUNQUE TAMBIEN PUEDE SER ONLINE: await page.addScriptTag({url: 'https://code.jquery.com/jquery-3.2.1.min.js'});
@@ -713,7 +701,6 @@ function descargarRecursos(sources, accessCookie) {
 		descargarRecurso(0);
 	});
 }
-
 
 
 
