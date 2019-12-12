@@ -17,30 +17,6 @@ const _personalData = JSON.parse(fs.readFileSync("datos-personales.json"));
 // TODO: AUN NO PROGRAMADO 🤖: const _enumerarCarpetasDescargadas = true; // [bool, def: true]. Agregar un número a cada nombre de carpeta según su disposición en el aula virtual.
 
 
-// FUNCIONES DE SOPORTE
-/*const retry = (fn, ms) => new Promise(resolve => {
-	fn()
-		.then(resolve)
-		.catch(() => {
-			setTimeout(() => {
-				console.log('retrying...');
-				retry(fn, ms).then(resolve);
-			}, ms);
-		})
-});
-
-b = 1;
-a = retry(function() {
-    return new Promise (function (resolve, rej) {
-        setTimeout(() => {
-                intento = +(Math.random()*5).toFixed(0);
-                console.log(intento)
-                if(intento == b) resolve(intento); 
-                else rej(intento)
-        }, 1000);
-    }).then(intento).catch()
-}, 3000)
-*/
 
 // -------------------------------------------------------------------------------------------------
 //						 					UTILIDADES
