@@ -3,7 +3,7 @@
     "puppeteer_headless": true,
     "puppeteer_window_width": 600,
     "puppeteer_window_height": 300,
-    "recursos_blackListTipos": [
+    "recursos_blackListTipos_examplesURLs": [
         "https://aulavirtual.fio.unam.edu.ar/theme/image.php/clean/forum/1551107122/icon",
         "https://aulavirtual.fio.unam.edu.ar/theme/image.php/clean/page/1551107122/icon",
         "https://aulavirtual.fio.unam.edu.ar/theme/image.php/clean/feedback/1551107122/icon",
@@ -15,6 +15,7 @@
         "https://aulavirtual.fio.unam.edu.ar/theme/image.php/clean/lesson/1551954692/icon",
         "https://aulavirtual.fio.unam.edu.ar/theme/image.php/more/page/1551954692/icon",
         "https://aulavirtual.fio.unam.edu.ar/theme/image.php/more/url/1551954692/icon",
+        "https://aulavirtual.fio.unam.edu.ar/theme/image.php/classic/url/1576782901/icon",
         "https://aulavirtual.fio.unam.edu.ar/theme/image.php/more/core/1551954692/f/sourcecode-24",
         "https://aulavirtual.fio.unam.edu.ar/theme/image.php/more/data/1551954692/icon",
         "https://aulavirtual.fio.unam.edu.ar/theme/image.php/clean/glossary/1551954692/icon"

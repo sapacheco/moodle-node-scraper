@@ -261,17 +261,33 @@ async function searchForMoodleSources (puppeteerPage) {
 		})();
 
 
-		// ELIMINAMOS LA PARTE QUE CONTIENE NUMEROS EN LA URL DE LOS DIFERENTES
-		// TIPOS DE RECURSOS PORQUE ESTOS NÚMEROS CAMBIAN CONSTANTEMENTE
-		// QUITANDOLE ROBUSTES AL PROGRAMA.
-		var recursos_blackListTiposGenericos = myConfig.recursos_blackListTipos.map((i) => i.replace(/\/\d+(?=\/)/gi, ""));
+		// DE LAS LISTAS NEGRAS OBTENEMOS SOLAMENTE LA PARTE DE LA
+		// URL QUE DEFINE EL TIPO DE RECURSO DEL CUAL SE TRATA, QUE
+		// CONLLEVA EL TEXTO QUE ESTÁ ANTES DEL NUMERO EN LA URL, Y
+		// LA PARTE FINAL DEL MISMO. LA SUMA DE AMBOS SEGMENTOS 
+		// COMPONEN EL "TIPO" DE RECURSO QUE SE ESTA MANEJANDO
+		// EJ: https://aulavirtual.fio.unam.edu.ar/theme/image.php/clean/forum/1551107122/icon
+		// 	   Tipo de recurso: forumicon
+		var rx_only_type = new RegExp("\\w+(?=\/\\d+\/)", "gi");
+		var recursos_blackListTiposGenericos = [];
+		for (var i in myConfig.recursos_blackListTipos_examplesURLs) {
+			let actual = myConfig.recursos_blackListTipos_examplesURLs[i];
+			let tipoParte1 = (actual.match(rx_only_type))[0];
+			let tipoParte2 = actual.split("/").pop();
+			let tipo = tipoParte1 + tipoParte2;
+			recursos_blackListTiposGenericos.push(tipo);
+		}
 
 
 		// FILTRA LOS RECURSOS DE LA PAGINA EN BASE A LA LISTA NEGRA DEFINIDA
 		// ARRIBA (FILTRADO POR TIPO). 
 		// TODO: Implementar filtrado por nombre?
 		function filter(index, item) {
-			var tipo = (jQuery(item).find("img").attr("src")).replace(/\/\d+(?=\/)/gi, ""); // ELIMINAMOS LA PARTE QUE CONTIENE NUMEROS CAMBIANTES EN LA URL
+			let url = jQuery(item).find("img").attr("src");
+			let tipoParte1 = (url.match(rx_only_type))[0];
+			let tipoParte2 = url.split("/").pop();
+			let tipo = tipoParte1 + tipoParte2;
+
 			if(recursos_blackListTiposGenericos.indexOf(tipo) === -1 ) {
 				jQuery(item).css({
 					"background": "#00ff1936",
@@ -717,5 +733,6 @@ function descargarRecursos(sources, accessCookie) {
 // 	image.*(\/\d+(?=\/))
 // 	.+(?=\/\d.+\/)
 // 	\w+(?=/\d+/)   ESTE ANDA BIEN...
+//  \w+(?=\/\d+\/)  ESTE ES EL MISMO QUE ANDA BIEN SOLO QUE NO PRESENTA ERRORES AL CREAR LA EXPRESION REGULAR
 
 // Gracias Señor Jesús.-
